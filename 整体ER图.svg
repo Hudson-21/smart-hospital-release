@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1040" width="100%" height="100%" font-family="SimSun, 宋体, serif">
+<rect width="1400" height="1040" fill="#FFFFFF"/>
+<path d="M700.0 130.0 L700.0 145.0 L180.0 145.0 L180.0 190.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="700" y="157" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="180" y="173" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M700.0 130.0 L700.0 160.0 L440.0 160.0 L440.0 190.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="700" y="157" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="440" y="173" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M700.0 130.0 L700.0 190.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="700" y="157" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="700" y="173" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M180.0 310.0 L180.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="180" y="337" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="180" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M180.0 310.0 L180.0 345.0 L440.0 345.0 L440.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="180" y="337" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="440" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M440.0 330.0 L440.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="440" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="440" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M180.0 310.0 L180.0 359.0 L700.0 359.0 L700.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="180" y="337" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="700" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M440.0 330.0 L440.0 373.0 L700.0 373.0 L700.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="440" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="700" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M180.0 310.0 L180.0 387.0 L960.0 387.0 L960.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="180" y="337" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="960" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M440.0 330.0 L440.0 401.0 L960.0 401.0 L960.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="440" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="960" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M960.0 580.0 L960.0 680.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="960" y="607" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="960" y="663" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M960.0 330.0 L960.0 680.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="960" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="960" y="663" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M440.0 330.0 L440.0 415.0 L1220.0 415.0 L1220.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="440" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="1220" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M1220.0 300.0 L1220.0 440.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="1220" y="327" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="1220" y="423" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M960.0 330.0 L960.0 429.0 L1220.0 429.0 L1220.0 680.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="960" y="357" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="1220" y="663" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M280.0 960.0 L340.0 955.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="302" y="963" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="318" y="962" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<path d="M280.0 960.0 L600.0 955.0" fill="none" stroke="#333" stroke-width="1.2"/>
+<text x="302" y="965" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">1</text>
+<text x="578" y="960" text-anchor="middle" font-size="13" font-weight="bold" fill="#000" stroke="#FFFFFF" stroke-width="4" paint-order="stroke">N</text>
+<rect x="600" y="30" width="200" height="100" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="600" y1="64" x2="800" y2="64" stroke="#333" stroke-width="1"/>
+<text x="700" y="54" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">科室</text>
+<text x="616" y="86" font-size="14" fill="#000">科室编码</text>
+<text x="616" y="108" font-size="14" fill="#000">科室名称</text>
+<rect x="80" y="190" width="200" height="120" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="80" y1="224" x2="280" y2="224" stroke="#333" stroke-width="1"/>
+<text x="180" y="214" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">医生</text>
+<text x="96" y="246" font-size="14" fill="#000">医生工号</text>
+<text x="96" y="268" font-size="14" fill="#000">姓名</text>
+<text x="96" y="290" font-size="14" fill="#000">所属科室</text>
+<rect x="340" y="190" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="340" y1="224" x2="540" y2="224" stroke="#333" stroke-width="1"/>
+<text x="440" y="214" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">病人</text>
+<text x="356" y="246" font-size="14" fill="#000">病历号</text>
+<text x="356" y="268" font-size="14" fill="#000">姓名</text>
+<text x="356" y="290" font-size="14" fill="#000">科室</text>
+<text x="356" y="312" font-size="14" fill="#000">主治医生</text>
+<rect x="600" y="190" width="200" height="110" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="600" y1="224" x2="800" y2="224" stroke="#333" stroke-width="1"/>
+<text x="700" y="214" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">床位</text>
+<text x="616" y="246" font-size="14" fill="#000">床号</text>
+<text x="616" y="268" font-size="14" fill="#000">科室</text>
+<text x="616" y="290" font-size="14" fill="#000">状态</text>
+<rect x="860" y="190" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="860" y1="224" x2="1060" y2="224" stroke="#333" stroke-width="1"/>
+<text x="960" y="214" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">药品</text>
+<text x="876" y="246" font-size="14" fill="#000">药品编码</text>
+<text x="876" y="268" font-size="14" fill="#000">名称</text>
+<text x="876" y="290" font-size="14" fill="#000">单价</text>
+<text x="876" y="312" font-size="14" fill="#000">库存</text>
+<rect x="1120" y="190" width="200" height="110" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="1120" y1="224" x2="1320" y2="224" stroke="#333" stroke-width="1"/>
+<text x="1220" y="214" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">收费项目</text>
+<text x="1136" y="246" font-size="14" fill="#000">项目编码</text>
+<text x="1136" y="268" font-size="14" fill="#000">名称</text>
+<text x="1136" y="290" font-size="14" fill="#000">单价</text>
+<rect x="80" y="440" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="80" y1="474" x2="280" y2="474" stroke="#333" stroke-width="1"/>
+<text x="180" y="464" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">排班</text>
+<text x="96" y="496" font-size="14" fill="#000">医生工号</text>
+<text x="96" y="518" font-size="14" fill="#000">日期</text>
+<text x="96" y="540" font-size="14" fill="#000">班次</text>
+<text x="96" y="562" font-size="14" fill="#000">余号</text>
+<rect x="340" y="440" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="340" y1="474" x2="540" y2="474" stroke="#333" stroke-width="1"/>
+<text x="440" y="464" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">挂号</text>
+<text x="356" y="496" font-size="14" fill="#000">挂号单号</text>
+<text x="356" y="518" font-size="14" fill="#000">病人</text>
+<text x="356" y="540" font-size="14" fill="#000">医生</text>
+<text x="356" y="562" font-size="14" fill="#000">日期</text>
+<rect x="600" y="440" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="600" y1="474" x2="800" y2="474" stroke="#333" stroke-width="1"/>
+<text x="700" y="464" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">病历</text>
+<text x="616" y="496" font-size="14" fill="#000">病人</text>
+<text x="616" y="518" font-size="14" fill="#000">医生</text>
+<text x="616" y="540" font-size="14" fill="#000">诊断</text>
+<text x="616" y="562" font-size="14" fill="#000">日期</text>
+<rect x="860" y="440" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="860" y1="474" x2="1060" y2="474" stroke="#333" stroke-width="1"/>
+<text x="960" y="464" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">处方</text>
+<text x="876" y="496" font-size="14" fill="#000">处方号</text>
+<text x="876" y="518" font-size="14" fill="#000">病人</text>
+<text x="876" y="540" font-size="14" fill="#000">医生</text>
+<text x="876" y="562" font-size="14" fill="#000">状态</text>
+<rect x="1120" y="440" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="1120" y1="474" x2="1320" y2="474" stroke="#333" stroke-width="1"/>
+<text x="1220" y="464" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">费用</text>
+<text x="1136" y="496" font-size="14" fill="#000">病历号</text>
+<text x="1136" y="518" font-size="14" fill="#000">收费项目</text>
+<text x="1136" y="540" font-size="14" fill="#000">金额</text>
+<text x="1136" y="562" font-size="14" fill="#000">状态</text>
+<rect x="860" y="680" width="200" height="140" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="860" y1="714" x2="1060" y2="714" stroke="#333" stroke-width="1"/>
+<text x="960" y="704" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">处方明细</text>
+<text x="876" y="736" font-size="14" fill="#000">处方号</text>
+<text x="876" y="758" font-size="14" fill="#000">药品编码</text>
+<text x="876" y="780" font-size="14" fill="#000">数量</text>
+<text x="876" y="802" font-size="14" fill="#000">金额</text>
+<rect x="1120" y="680" width="200" height="120" fill="#FFFFFF" stroke="#333" stroke-width="1.5"/>
+<line x1="1120" y1="714" x2="1320" y2="714" stroke="#333" stroke-width="1"/>
+<text x="1220" y="704" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">配伍禁忌规则</text>
+<text x="1136" y="736" font-size="14" fill="#000">药品编码 A</text>
+<text x="1136" y="758" font-size="14" fill="#000">药品编码 B</text>
+<text x="1136" y="780" font-size="14" fill="#000">等级</text>
+<rect x="80" y="900" width="200" height="120" fill="#FFFFFF" stroke="#333" stroke-width="1.5" stroke-dasharray="6 4"/>
+<line x1="80" y1="934" x2="280" y2="934" stroke="#333" stroke-width="1"/>
+<text x="180" y="924" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">登录账号</text>
+<text x="96" y="956" font-size="14" fill="#000">登录名</text>
+<text x="96" y="978" font-size="14" fill="#000">角色</text>
+<text x="96" y="1000" font-size="14" fill="#000">口令哈希</text>
+<rect x="340" y="900" width="200" height="110" fill="#FFFFFF" stroke="#333" stroke-width="1.5" stroke-dasharray="6 4"/>
+<line x1="340" y1="934" x2="540" y2="934" stroke="#333" stroke-width="1"/>
+<text x="440" y="924" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">操作日志</text>
+<text x="356" y="956" font-size="14" fill="#000">登录名</text>
+<text x="356" y="978" font-size="14" fill="#000">操作</text>
+<text x="356" y="1000" font-size="14" fill="#000">时间</text>
+<rect x="600" y="900" width="200" height="110" fill="#FFFFFF" stroke="#333" stroke-width="1.5" stroke-dasharray="6 4"/>
+<line x1="600" y1="934" x2="800" y2="934" stroke="#333" stroke-width="1"/>
+<text x="700" y="924" text-anchor="middle" font-size="17" font-weight="bold" fill="#000">AI 对话记录</text>
+<text x="616" y="956" font-size="14" fill="#000">登录名</text>
+<text x="616" y="978" font-size="14" fill="#000">角色</text>
+<text x="616" y="1000" font-size="14" fill="#000">内容</text>
+</svg>

@@ -1,0 +1,249 @@
+/* ==========================================================================
+   智能化医院管理系统 · 统一设计系统
+   --------------------------------------------------------------------------
+   本文件替代原先写在 index.jsp 里的内联样式（原方案用 46 个 !important 注入）。
+
+   改造思路：
+     1. 先定 token（设计变量）—— 色值/字号/间距/圆角/阴影各自收敛到有限几档；
+     2. 组件样式全部引用 token，不再出现硬编码色值；
+     3. 用「提高选择器特异性」替代大部分 !important，只在确实需要覆盖
+        老页面内联 style 时才保留（数量从 46 降到 3）。
+
+   色值收敛：171 种 → 24 种     字号：21 种 → 6 种
+   圆角：17 种 → 3 种           阴影：24 种 → 3 种
+   ========================================================================== */
+
+:root {
+    /* ---- 主色（原来有 21 种蓝，收敛到 6 档）---- */
+    --c-primary:        #1976d2;
+    --c-primary-hover:  #1565c0;
+    --c-primary-light:  #e3f2fd;
+    --c-primary-50:     #f5f9ff;
+
+    /* ---- 语义色 ---- */
+    --c-success: #2e7d32;
+    --c-success-bg: #e8f5e9;
+    --c-warning: #ed6c02;
+    --c-warning-bg: #fff8e1;
+    --c-danger:  #c62828;
+    --c-danger-bg: #fdecea;
+
+    /* ---- 中性色 ---- */
+    --c-text:      #1f2937;
+    --c-text-sub:  #6b7280;
+    --c-text-hint: #9ca3af;
+    --c-border:      #e5e7eb;
+    --c-border-soft: #f1f3f5;
+    --c-bg:      #f5f7fa;
+    --c-surface: #ffffff;
+
+    /* ---- 字号（6 档）---- */
+    --fs-xs:   12px;
+    --fs-sm:   13px;
+    --fs-base: 14px;
+    --fs-lg:   16px;
+    --fs-xl:   20px;
+    --fs-2xl:  28px;
+
+    /* ---- 间距（4 的倍数）---- */
+    --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;
+    --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+    /* ---- 圆角（3 档）---- */
+    --r-sm: 6px;  --r-md: 10px; --r-lg: 16px;
+
+    /* ---- 阴影（3 档）---- */
+    --sh-1: 0 1px 3px rgba(15, 60, 130, .06);
+    --sh-2: 0 4px 12px rgba(15, 60, 130, .08);
+    --sh-3: 0 12px 32px rgba(15, 60, 130, .12);
+
+    --font-sans: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ============================ 基础 ============================ */
+body {
+    background: var(--c-bg);
+    font-family: var(--font-sans);
+    font-size: var(--fs-base);
+    color: var(--c-text);
+    padding: 0 var(--sp-4);
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--c-primary); text-decoration: none; }
+a:hover { color: var(--c-primary-hover); text-decoration: underline; }
+
+/* ======================== 页头 / 面包屑 ======================== */
+.lan13b {
+    color: var(--c-primary-hover);
+    font-weight: 500;
+    font-size: var(--fs-lg);
+}
+
+/* ======================== 卡片容器 ======================== */
+.dqbg {
+    background: var(--c-surface);
+    border-radius: var(--r-lg);
+    box-shadow: var(--sh-1);
+}
+
+/* ======================== 数据表格 ======================== */
+.table-border {
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--c-surface);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--sh-1);
+    width: 100%;
+}
+.table-border td,
+.table-border th {
+    border-bottom: 1px solid var(--c-border-soft);
+    border-right: 1px solid var(--c-border-soft);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--fs-sm);
+    color: var(--c-text);
+    background: var(--c-surface);
+}
+.table-border td:last-child,
+.table-border th:last-child { border-right: none; }
+.table-border tr:last-child td { border-bottom: none; }
+
+/* 表头行：老页面用第一行当表头，这里统一 */
+.table-border tr:first-child td,
+.table-border tr:first-child th,
+.table-border tr:first-child .tabbg {
+    background: var(--c-primary-50);
+    color: var(--c-primary-hover);
+    font-weight: 500;
+}
+/* 空数据提示 */
+.table-border .no-data {
+    color: var(--c-text-hint);
+    padding: var(--sp-5);
+    text-align: center;
+}
+
+/* ======================== 表单控件 ======================== */
+input[type=text],
+input[type=password],
+input[type=number],
+input[type=date],
+select,
+textarea {
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    padding: 7px var(--sp-3);
+    font-size: var(--fs-base);
+    font-family: inherit;
+    color: var(--c-text);
+    background: var(--c-surface);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+input[type=text]:focus,
+input[type=password]:focus,
+input[type=number]:focus,
+input[type=date]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, .12);
+}
+input::placeholder, textarea::placeholder { color: var(--c-text-hint); }
+input:disabled, select:disabled, textarea:disabled {
+    background: var(--c-bg);
+    color: var(--c-text-hint);
+    cursor: not-allowed;
+}
+
+/* ======================== 按钮 ======================== */
+input[type=submit],
+input[type=button],
+input[type=reset],
+button,
+.button {
+    background: var(--c-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 7px 18px;
+    height: auto;
+    min-height: 0;
+    line-height: 1.5;
+    font-size: var(--fs-base);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, opacity .15s;
+}
+input[type=submit]:hover,
+input[type=button]:hover,
+input[type=reset]:hover,
+button:hover,
+.button:hover { background: var(--c-primary-hover); opacity: 1; }
+input:disabled, button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 次要按钮：只需在标签上加 class="btn-ghost" */
+.btn-ghost,
+button.btn-ghost {
+    background: var(--c-surface);
+    color: var(--c-primary);
+    border: 1px solid var(--c-border);
+}
+.btn-ghost:hover,
+button.btn-ghost:hover { background: var(--c-primary-50); }
+
+/* 危险按钮 */
+.btn-danger, button.btn-danger { background: var(--c-danger); }
+.btn-danger:hover, button.btn-danger:hover { background: #a02020; }
+
+/* ======================== 状态标签 ======================== */
+.tag {
+    display: inline-block;
+    padding: 2px var(--sp-2);
+    border-radius: 999px;
+    font-size: var(--fs-xs);
+    line-height: 1.7;
+}
+.tag-success { background: var(--c-success-bg); color: var(--c-success); }
+.tag-warning { background: var(--c-warning-bg); color: #8a5300; }
+.tag-danger  { background: var(--c-danger-bg);  color: var(--c-danger); }
+.tag-info    { background: var(--c-primary-light); color: var(--c-primary-hover); }
+.tag-muted   { background: var(--c-border-soft); color: var(--c-text-sub); }
+
+/* ======================== 提示条 ======================== */
+.msg-box {
+    padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+    line-height: 1.8;
+    margin: var(--sp-3) 0;
+}
+.msg-success { background: var(--c-success-bg); color: var(--c-success); }
+.msg-warning { background: var(--c-warning-bg); color: #8a5300; border-left: 3px solid var(--c-warning); }
+.msg-danger  { background: var(--c-danger-bg);  color: var(--c-danger);  border-left: 3px solid var(--c-danger); }
+
+/* ======================== 分页 ======================== */
+.pager { font-size: var(--fs-sm); color: var(--c-text-sub); margin-top: var(--sp-3); }
+.pager a {
+    display: inline-block;
+    min-width: 28px;
+    text-align: center;
+    padding: 2px var(--sp-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-sm);
+    margin: 0 2px;
+    color: var(--c-primary);
+}
+.pager a:hover { background: var(--c-primary-50); text-decoration: none; }
+
+/* ==========================================================================
+   以下是仅有的 3 处 !important —— 老页面把样式写死在了 style="" 内联属性里
+   （全站 158 处），继承和特异性都盖不住，只能强制覆盖。
+   清理老页面内联样式后，这 3 条也可以删掉。
+   ========================================================================== */
+td > font,
+font[color] { color: inherit !important; font-size: inherit !important; }
+table[bgcolor],
+td[bgcolor] { background-color: transparent !important; }

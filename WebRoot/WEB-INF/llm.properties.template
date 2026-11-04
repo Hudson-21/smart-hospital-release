@@ -1,0 +1,18 @@
+# LLM 网关配置模板
+#
+# 使用方法：复制本文件为 llm.properties，然后填入你自己的密钥。
+#   Windows:  copy llm.properties.template llm.properties
+#   Linux:    cp llm.properties.template llm.properties
+#
+# ⚠️ llm.properties 含真实密钥，已被 .gitignore 排除，请勿提交到版本库或打包进作业。
+#    如密钥曾外泄（截图、聊天记录、公开仓库），请立刻到服务商平台重置。
+
+# 接口地址（OpenAI 兼容格式）
+apiUrl=https://api.siliconflow.cn/v1/chat/completions
+
+# 接口密钥：形如 sk-xxxxxxxx 或平台自定义前缀
+# 留空则系统自动降级为本地模拟模式（演示不中断）
+apiKey=
+
+# 模型名
+model=Qwen/Qwen2.5-7B-Instruct

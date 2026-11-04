@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>界面改造对比预览 · 智能化医院管理系统</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;
+    background:#eef1f5; padding:28px 20px 60px; color:#1f2937;
+  }
+  .page-title { text-align:center; margin-bottom:6px; font-size:20px; font-weight:500; }
+  .page-sub { text-align:center; color:#6b7280; font-size:13px; margin-bottom:26px; }
+  .stage { display:flex; gap:20px; max-width:1680px; margin:0 auto; align-items:flex-start; }
+  .pane { flex:1; min-width:0; }
+  .pane-label {
+    display:flex; align-items:center; gap:8px; margin-bottom:10px;
+    font-size:14px; font-weight:500;
+  }
+  .pane-label .dot { width:8px; height:8px; border-radius:50%; }
+  .pane-label .note { font-weight:400; font-size:12px; color:#6b7280; margin-left:auto; }
+  .frame {
+    background:#fff; border-radius:12px; overflow:hidden;
+    box-shadow:0 2px 14px rgba(15,60,130,.10);
+  }
+  .frame-inner { padding:16px; }
+
+  /* ---------- 变化说明条 ---------- */
+  .deltas { max-width:1680px; margin:26px auto 0; }
+  .deltas h3 { font-size:14px; font-weight:500; margin-bottom:12px; }
+  .delta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+  .delta {
+    background:#fff; border-radius:10px; padding:12px 14px;
+    box-shadow:0 1px 4px rgba(15,60,130,.07);
+  }
+  .delta .k { font-size:12px; color:#6b7280; margin-bottom:5px; }
+  .delta .v { font-size:13px; }
+  .delta .v b { color:#1976d2; font-weight:500; }
+  .delta .v s { color:#9ca3af; }
+
+  /* ==========================================================================
+     A 栏：改造前 —— 还原当前项目的真实样式特征
+     （硬编码色值、圆角/阴影不统一、字号混用 13px/13.5px/14px）
+     ========================================================================== */
+  .before { padding:0 14px; font-family:"Microsoft YaHei",Arial,sans-serif; }
+  .before a { color:#03a8f6; text-decoration:none; }
+  .before a:hover { text-decoration:underline; }
+  .before .crumb { color:#2563eb; font-weight:bold; font-size:15px; margin-bottom:10px; }
+  .before .searchbar {
+    background:#fff; border-radius:12px; box-shadow:0 1px 4px #cdd8e6;
+    padding:10px 12px; margin-bottom:10px; font-size:13.5px; text-align:center;
+  }
+  .before .searchbar input[type=text] {
+    border:1px solid #dce3ec; border-radius:8px; padding:7px 10px; font-size:13px; width:130px;
+  }
+  .before .searchbar select {
+    border:1px solid #dce3ec; border-radius:8px; padding:7px 10px; font-size:13px;
+  }
+  .before .btn {
+    background:#03a8f6; color:#fff; border:none; border-radius:5px;
+    padding:6px 18px; font-size:13px; cursor:pointer; margin-left:6px;
+  }
+  .before .btn2 {
+    background:#2563eb; color:#fff; border:none; border-radius:8px;
+    padding:6px 18px; font-size:13.5px; cursor:pointer; margin-left:6px;
+  }
+  .before table { border-collapse:separate; border-spacing:0; width:100%; background:#fff;
+    border-radius:12px; overflow:hidden; box-shadow:0 1px 4px #cdd8e6; }
+  .before td {
+    border-bottom:1px solid #eef1f5; border-right:1px solid #f4f6fa;
+    padding:10px 12px; font-size:13px; color:#37474f;
+  }
+  .before tr:first-child td { background:#f5f9ff; color:#1565c0; font-weight:bold; }
+  .before .op a { color:#03a8f6; margin:0 5px; font-size:13px; }
+  .before .op .del { color:#e74c3c; }
+  .before .pager { font-size:13px; color:#888; margin-top:10px; }
+  .before .pager span { color:#03a8f6; margin:0 4px; }
+
+  /* ==========================================================================
+     B 栏：改造后 —— 引用 web.css 的 token 体系
+     （色值/字号/圆角/阴影全部收敛）
+     ========================================================================== */
+  .after {
+    padding:0 16px; font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;
+    --c-primary:#1976d2; --c-primary-hover:#1565c0; --c-primary-light:#e3f2fd; --c-primary-50:#f5f9ff;
+    --c-text:#1f2937; --c-text-sub:#6b7280; --c-text-hint:#9ca3af;
+    --c-border:#e5e7eb; --c-border-soft:#f1f3f5; --c-bg:#f5f7fa; --c-surface:#fff;
+    --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-lg:16px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+    --r-sm:6px; --r-md:10px; --r-lg:16px;
+    --sh-1:0 1px 3px rgba(15,60,130,.06); --sh-2:0 4px 12px rgba(15,60,130,.08);
+    font-size:var(--fs-base); color:var(--c-text);
+  }
+  .after a { color:var(--c-primary); text-decoration:none; }
+  .after a:hover { color:var(--c-primary-hover); text-decoration:underline; }
+  .after .crumb {
+    color:var(--c-primary-hover); font-weight:500; font-size:var(--fs-lg); margin-bottom:12px;
+  }
+  .after .searchbar {
+    background:var(--c-surface); border-radius:var(--r-lg); box-shadow:var(--sh-1);
+    padding:var(--sp-3) var(--sp-4); margin-bottom:var(--sp-3);
+    font-size:var(--fs-base); display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap;
+  }
+  .after .searchbar .lbl { color:var(--c-text-sub); font-size:var(--fs-sm); }
+  .after .searchbar .grow { flex:1; }
+  .after input[type=text], .after select {
+    border:1px solid var(--c-border); border-radius:var(--r-sm);
+    padding:7px var(--sp-3); font-size:var(--fs-base); font-family:inherit;
+    color:var(--c-text); background:var(--c-surface); outline:none;
+  }
+  .after input[type=text]:focus, .after select:focus {
+    border-color:var(--c-primary); box-shadow:0 0 0 3px rgba(25,118,210,.12);
+  }
+  .after .btn {
+    background:var(--c-primary); color:#fff; border:none; border-radius:var(--r-sm);
+    padding:7px 18px; font-size:var(--fs-base); font-family:inherit; cursor:pointer;
+  }
+  .after .btn:hover { background:var(--c-primary-hover); }
+  .after .btn-ghost {
+    background:var(--c-surface); color:var(--c-primary); border:1px solid var(--c-border);
+    border-radius:var(--r-sm); padding:7px 16px; font-size:var(--fs-base);
+    font-family:inherit; cursor:pointer;
+  }
+  .after .btn-ghost:hover { background:var(--c-primary-50); }
+  .after table {
+    border-collapse:separate; border-spacing:0; width:100%;
+    background:var(--c-surface); border-radius:var(--r-md);
+    overflow:hidden; box-shadow:var(--sh-1);
+  }
+  .after td {
+    border-bottom:1px solid var(--c-border-soft); border-right:1px solid var(--c-border-soft);
+    padding:var(--sp-3) var(--sp-4); font-size:var(--fs-sm); color:var(--c-text);
+  }
+  .after td:last-child { border-right:none; }
+  .after tr:last-child td { border-bottom:none; }
+  .after tr:first-child td {
+    background:var(--c-primary-50); color:var(--c-primary-hover); font-weight:500;
+  }
+  .after .tag {
+    display:inline-block; padding:2px var(--sp-2); border-radius:999px;
+    font-size:var(--fs-xs); line-height:1.7;
+  }
+  .after .tag-info { background:var(--c-primary-light); color:var(--c-primary-hover); }
+  .after .tag-success { background:#e8f5e9; color:#2e7d32; }
+  .after .tag-muted { background:var(--c-border-soft); color:var(--c-text-sub); }
+  .after .op a { margin:0 6px; font-size:var(--fs-sm); }
+  .after .op .del { color:#c62828; }
+  .after .pager {
+    font-size:var(--fs-sm); color:var(--c-text-sub);
+    margin-top:var(--sp-3); display:flex; align-items:center; gap:6px;
+  }
+  .after .pager .pg {
+    display:inline-block; min-width:28px; text-align:center;
+    padding:2px var(--sp-2); border:1px solid var(--c-border);
+    border-radius:var(--r-sm); color:var(--c-primary);
+  }
+  .after .pager .pg.on { background:var(--c-primary); color:#fff; border-color:var(--c-primary); }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">界面改造对比预览</h1>
+<p class="page-sub">同一个业务页面 · 左为当前实现，右为 token 化之后（页面结构完全没动，只换样式层）</p>
+
+<div class="stage">
+
+  <div class="pane">
+    <div class="pane-label">
+      <span class="dot" style="background:#e74c3c"></span>改造前
+      <span class="note">171 种色值 · 17 种圆角 · 46 个 !important</span>
+    </div>
+    <div class="frame"><div class="frame-inner">
+      <div class="before">
+        <div class="crumb">个人中心 &gt; 病人信息查询</div>
+
+        <div class="searchbar">
+          姓名：<input type="text" placeholder="请输入姓名">
+          科室：<select><option>全部科室</option><option selected>内科</option></select>
+          <button class="btn">查询</button>
+          <button class="btn2">+ 新增病人</button>
+        </div>
+
+        <table>
+          <tr><td>病历号</td><td>姓名</td><td>性别</td><td>年龄</td><td>科室</td><td>主治医生</td><td>操作</td></tr>
+          <tr><td>B005</td><td>陈晓兰</td><td>女</td><td>66</td><td>心血管内科</td><td>郑医生</td>
+              <td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B007</td><td>王丽</td><td>女</td><td>28</td><td>妇产科</td><td>沈医生</td>
+              <td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B010</td><td>李国强</td><td>男</td><td>62</td><td>骨科</td><td>冯医生</td>
+              <td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B012</td><td>周涛</td><td>男</td><td>24</td><td>皮肤科</td><td>陈医生</td>
+              <td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B500</td><td>孙建国</td><td>男</td><td>71</td><td>内科</td><td>张医生</td>
+              <td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+        </table>
+
+        <div class="pager">共 120 条 <span>首页</span><span>上一页</span><span>1</span><span>2</span><span>下一页</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="pane">
+    <div class="pane-label">
+      <span class="dot" style="background:#2e7d32"></span>改造后
+      <span class="note">24 种色值 · 3 档圆角 · 3 个 !important</span>
+    </div>
+    <div class="frame"><div class="frame-inner">
+      <div class="after">
+        <div class="crumb">个人中心 &gt; 病人信息查询</div>
+
+        <div class="searchbar">
+          <span class="lbl">姓名</span><input type="text" placeholder="请输入姓名">
+          <span class="lbl">科室</span>
+          <select><option>全部科室</option><option selected>内科</option></select>
+          <span class="grow"></span>
+          <button class="btn">查询</button>
+          <button class="btn-ghost">+ 新增病人</button>
+        </div>
+
+        <table>
+          <tr><td>病历号</td><td>姓名</td><td>性别</td><td>年龄</td><td>科室</td><td>主治医生</td><td>操作</td></tr>
+          <tr><td>B005</td><td>陈晓兰</td><td>女</td><td>66</td><td>心血管内科</td>
+              <td>郑医生</td><td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B007</td><td>王丽</td><td>女</td><td>28</td><td>妇产科</td>
+              <td>沈医生</td><td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B010</td><td>李国强</td><td>男</td><td>62</td><td>骨科</td>
+              <td>冯医生</td><td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B012</td><td>周涛</td><td>男</td><td>24</td><td>皮肤科</td>
+              <td>陈医生</td><td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+          <tr><td>B500</td><td>孙建国</td><td>男</td><td>71</td><td>内科</td>
+              <td>张医生</td><td class="op"><a href="#">查看</a><a href="#">编辑</a><a href="#" class="del">删除</a></td></tr>
+        </table>
+
+        <div class="pager">
+          共 120 条
+          <span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span>
+          <span class="pg">下一页</span>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="deltas">
+  <h3>具体改了什么</h3>
+  <div class="delta-grid">
+    <div class="delta">
+      <div class="k">主色</div>
+      <div class="v"><s>#03a8f6 / #2563eb / #1976d2 / #2196f3</s><br>→ <b>单一 #1976d2</b></div>
+    </div>
+    <div class="delta">
+      <div class="k">圆角</div>
+      <div class="v"><s>5px / 8px / 12px 混用</s><br>→ <b>6 / 10 / 16px 三档</b></div>
+    </div>
+    <div class="delta">
+      <div class="k">字号</div>
+      <div class="v"><s>13px / 13.5px / 15px 混用</s><br>→ <b>13 / 14 / 16px</b></div>
+    </div>
+    <div class="delta">
+      <div class="k">阴影</div>
+      <div class="v"><s>每条边框一个色值</s><br>→ <b>3 档统一</b></div>
+    </div>
+    <div class="delta">
+      <div class="k">焦点态</div>
+      <div class="v"><s>无</s><br>→ <b>蓝色描边 + 光晕</b></div>
+    </div>
+    <div class="delta">
+      <div class="k">信息层级</div>
+      <div class="v"><s>标签与输入框等宽挤在一起</s><br>→ <b>标签弱化 + 右对齐操作区</b></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

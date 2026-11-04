@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE web-app PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN" "http://java.sun.com/dtd/web-app_2_3.dtd">
+<web-app>
+  <display-name>智能化医院管理系统</display-name>
+
+  <!-- 全局登录鉴权 + 角色授权 + CSRF 校验：未登录访问业务页跳登录页，
+       越权访问返回 403，POST 写操作缺少 CSRF token 一并拦截 -->
+  <filter>
+    <filter-name>AuthFilter</filter-name>
+    <filter-class>com.hospital.AuthFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>AuthFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <welcome-file-list>
+    <welcome-file>login.jsp</welcome-file>
+  </welcome-file-list>
+
+  <!-- 会话超时（分钟）：超时后需重新登录 -->
+  <session-config>
+    <session-timeout>30</session-timeout>
+  </session-config>
+
+  <!-- 统一错误页：不再向浏览器暴露 Java 堆栈 / 服务器路径 / 版本信息。
+       注意：仅在响应尚未提交时生效（JSP 已输出内容后再报错无法转发，属规范限制）。 -->
+  <error-page>
+    <error-code>400</error-code>
+    <location>/error_page.jsp</location>
+  </error-page>
+  <error-page>
+    <error-code>403</error-code>
+    <location>/error_page.jsp</location>
+  </error-page>
+  <error-page>
+    <error-code>404</error-code>
+    <location>/error_page.jsp</location>
+  </error-page>
+  <error-page>
+    <error-code>405</error-code>
+    <location>/error_page.jsp</location>
+  </error-page>
+  <error-page>
+    <error-code>500</error-code>
+    <location>/error_page.jsp</location>
+  </error-page>
+  <error-page>
+    <exception-type>java.lang.Throwable</exception-type>
+    <location>/error_page.jsp</location>
+  </error-page>
+</web-app>
