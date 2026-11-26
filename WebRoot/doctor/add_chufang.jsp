@@ -89,7 +89,7 @@ while(rsp.next()){
 <tr><td colspan="2" id="sumRow">合计金额：¥0.00</td></tr>
 <tr><td colspan="2" class="tip" style="color:#e67e22;">
   ⚠ 保存时会自动检查药品配伍禁忌：命中「<b>禁忌</b>」将被拦截（不写入任何数据），
-  命中「<b>慎用</b>／<b>注意</b>」会提示但允许保存。
+  命中「<b>慎用</b>／<b>注意</b>」会提示但允许保存。若检查未完成，本次处方不会保存。
 </td></tr>
 <tr><td colspan="2" align="center">
   <button type="submit" style="background:linear-gradient(135deg,#1976d2,#2196f3);color:#fff;border:none;border-radius:5px;padding:8px 30px;font-size:14px;cursor:pointer;" onclick="return preSubmit();">保存处方</button>

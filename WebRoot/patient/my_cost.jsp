@@ -64,7 +64,7 @@ ResultSet rs = a.executeQuery(sql, myname);
 							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("xiangmu")==null?"":rs.getString("xiangmu"))%></td>
 							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("danjia")==null?"":rs.getString("danjia"))%></td>
 							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("shuliang")==null?"":rs.getString("shuliang"))%></td>
-							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("jine")==null?"":rs.getString("jine"))%></td>
+							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("jine")==null?"":rs.getString("jine"))%> <%=com.hospital.WebUtil.htmlEscape(rs.getString("state")==null?"":rs.getString("state"))%></td>
 							<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("riqi")==null?"":rs.getString("riqi"))%></td>
 						</tr>
 <%

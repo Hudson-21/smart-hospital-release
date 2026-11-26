@@ -49,7 +49,7 @@ while(r3.next()){ gk.add(r3.getString("kebie")==null?"未知":r3.getString("kebi
 
 List<String> ck = new ArrayList<String>();       // 收费项目
 List<Double> cm = new ArrayList<Double>();       // 各项目金额
-ResultSet r4 = a.executeQuery("SELECT xiangmu,SUM(jine+0) s FROM cost GROUP BY xiangmu");
+ResultSet r4 = a.executeQuery("SELECT xiangmu,SUM(jine+0) s FROM cost WHERE (state IS NULL OR state <> '已作废') GROUP BY xiangmu");
 while(r4.next()){ ck.add(r4.getString("xiangmu")==null?"未知":r4.getString("xiangmu")); cm.add(r4.getDouble("s")); }
 
 // KPI
@@ -233,7 +233,7 @@ function runAIQ(){
   fetch("../ai/llm.jsp",{
     method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded"},
-    body:"task=stats_query&q="+encodeURIComponent(q)
+    body:"_csrf=<%=com.hospital.Csrf.token(session)%>&task=stats_query&q="+encodeURIComponent(q)
   }).then(function(r){
     // 如果后端返回 500/404，r.ok 为 false，这里直接抛错让外层 catch 走“网络异常”
     if(!r.ok) throw new Error('HTTP '+r.status);

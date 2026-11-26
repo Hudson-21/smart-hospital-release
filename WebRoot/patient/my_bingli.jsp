@@ -1,40 +1,28 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="java.sql.*,com.hospital.*"%>
 <jsp:useBean id="a" scope="page" class="com.hospital.Dbcoon" />
-<%!
-// 病历字段转成可安全嵌入 JS 字符串的形式（复用 WebUtil.jsEscape，含 </script> 逃逸防护）
-String jsStr(String s){
-    return com.hospital.WebUtil.jsEscape(s);
-}
-%>
 <%
 String loginname = (String)session.getAttribute("loginname");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
 String myname = loginname;
+if(!(session.getAttribute("uid") instanceof Integer)){response.sendError(403);return;}
 // 参数化查询：杜绝拼接用户名的 SQL 注入
-String sql = "SELECT * FROM bingli WHERE patientname=? ORDER BY id DESC";
-// 单次查询：同时渲染表格行 + 收集 JS 数据供 AI 解读按钮传参
-StringBuilder js = new StringBuilder();
+String sql = "SELECT b.* FROM bingli b LEFT JOIN guahao g ON g.id=b.visit_id WHERE (b.visit_id IS NULL AND b.patientname=?) OR g.patient_account_id=? ORDER BY b.id DESC";
+// 按钮只携带数据库主键；解读端点独立核对归属。
+response.setHeader("Cache-Control","no-store");
 StringBuilder rows = new StringBuilder();
 boolean has=false;
 int idx=0;
-ResultSet rs = a.executeQuery(sql, myname);
+ResultSet rs = a.executeQuery(sql, myname,session.getAttribute("uid"));
 while(rs.next()){
     has=true;
-    if(idx>0) js.append(",");
-    js.append("{id:").append(idx)
-      .append(",kebie:\"").append(jsStr(rs.getString("kebie"))).append("\"")
-      .append(",doctor:\"").append(jsStr(rs.getString("doctor"))).append("\"")
-      .append(",zhenduan:\"").append(jsStr(rs.getString("zhenduan"))).append("\"")
-      .append(",content:\"").append(jsStr(rs.getString("content"))).append("\"")
-      .append(",riqi:\"").append(jsStr(rs.getString("riqi"))).append("\"}");
     rows.append("<tr class=\"even\">")
         .append("<td align=\"center\">").append(com.hospital.WebUtil.htmlEscape(rs.getString("kebie"))).append("</td>")
         .append("<td align=\"center\">").append(com.hospital.WebUtil.htmlEscape(rs.getString("doctor"))).append("</td>")
         .append("<td align=\"center\">").append(com.hospital.WebUtil.htmlEscape(rs.getString("zhenduan"))).append("</td>")
         .append("<td align=\"left\" class=\"padl5\">").append(com.hospital.WebUtil.htmlEscape(rs.getString("content"))).append("</td>")
         .append("<td align=\"center\">").append(com.hospital.WebUtil.htmlEscape(rs.getString("riqi"))).append("</td>")
-        .append("<td align=\"center\"><button class=\"exp-btn\" id=\"btn_").append(idx).append("\" onclick=\"explain(").append(idx).append(")\">AI 解读</button></td>")
+        .append("<td align=\"center\"><button class=\"exp-btn\" id=\"btn_").append(idx).append("\" onclick=\"explain(").append(rs.getInt("id")).append(")\">本地解读</button></td>")
         .append("</tr>");
     idx++;
 }
@@ -93,37 +81,29 @@ if(!has) rows.append("<tr><td colspan=\"6\" align=\"center\" class=\"even\">暂�
 <div id="dlg">
   <h3>病历大白话解读<button id="dlgClose" onclick="closeDlg()">×</button></h3>
   <div class="exp-body" id="dlgBody"></div>
-  <div class="exp-foot">以上解读由 AI 生成，仅供科普参考，一切以主治医生的当面解释和医嘱为准。<br>如有疑问，请携带病历咨询您的主治医生。</div>
+  <div class="exp-foot">来源：本地模板，病历未发送给外部模型，仅供科普参考，一切以主治医生的当面解释和医嘱为准。<br>如有疑问，请携带病历咨询您的主治医生。</div>
 </div>
 
 <script type="text/javascript">
-var bls=[<%=js.toString()%>];
-var myNameJ="<%=jsStr(myname)%>";
-
-function explain(i){
-  var b=bls[i]; if(!b) return;
+function explain(id){
   var mask=document.getElementById("mask"), dlg=document.getElementById("dlg"), body=document.getElementById("dlgBody");
   mask.style.display="block"; dlg.style.display="block";
-  body.innerHTML='<div class="exp-loading">AI 正在解读您的病历，请稍候…</div>';
+  body.innerHTML='<div class="exp-loading">正在本地解读您的病历，请稍候…</div>';
   fetch("../ai/llm.jsp",{
     method:"POST",
     headers:{"Content-Type":"application/x-www-form-urlencoded"},
-    body:"task=bingli_explain&patient="+encodeURIComponent(myNameJ)
-        +"&kebie="+encodeURIComponent(b.kebie)
-        +"&doctor="+encodeURIComponent(b.doctor)
-        +"&zhenduan="+encodeURIComponent(b.zhenduan)
-        +"&content="+encodeURIComponent(b.content)
-        +"&riqi="+encodeURIComponent(b.riqi)
+    body:"task=bingli_explain&_csrf=<%=Csrf.token(session)%>&id="+encodeURIComponent(id)
   }).then(function(r){return r.json();}).then(function(d){
     if(d.ok){
       var x=d.data;
-      body.innerHTML=
-        '<div class="exp-item"><div class="t">❓ 这是什么病</div><div class="c">'+x.what+'</div></div>'+
-        '<div class="exp-item"><div class="t">🏥 医生做了什么处理</div><div class="c">'+x.treat+'</div></div>'+
-        '<div class="exp-item"><div class="t">🏠 回家注意什么</div><div class="c">'+x.care+'</div></div>'+
-        '<div class="exp-item"><div class="t">⚠️ 什么情况要立即复诊</div><div class="c">'+x.warning+'</div></div>';
+      body.textContent="";
+      [["这是什么病",x.what],["处理说明",x.treat],["注意事项",x.care],["复诊提示",x.warning]].forEach(function(pair){
+        var section=document.createElement("div");section.className="exp-item";
+        var title=document.createElement("strong"); title.textContent=pair[0];section.appendChild(title);
+        var text=document.createElement("p");text.textContent=pair[1];section.appendChild(text);body.appendChild(section);
+      });
     }else{
-      body.innerHTML='<div class="exp-loading">'+(d.error||"解读失败，请稍后重试")+'</div>';
+      body.textContent=d.error||"解读失败，请稍后重试";
     }
   }).catch(function(e){
     body.innerHTML='<div class="exp-loading">网络异常，请稍后重试</div>';

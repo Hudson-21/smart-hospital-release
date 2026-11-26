@@ -15,10 +15,9 @@
 String loginname = (String)session.getAttribute("loginname");
 String usertype  = (String)session.getAttribute("usertype");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
-if(!"管理员".equals(usertype) && !"医生".equals(usertype)){
-    out.print("<script>alert('仅管理员/医生可操作处方流转');history.back();</script>"); return;
-}
-if(!"POST".equals(request.getMethod())){ out.print("<script>alert('请通过页面按钮操作');history.back();</script>"); return; }
+PrescriptionAccess access = PrescriptionAccess.forUser(loginname, usertype);
+if(!access.isAllowed()){response.sendError(403);return;}
+if(!"POST".equals(request.getMethod())){response.setHeader("Allow", "POST");response.sendError(405);return;}
 request.setCharacterEncoding("UTF-8");
 
 String cf  = request.getParameter("cf");
@@ -35,6 +34,19 @@ try{
         Connection cn = a.getConnection();
         cn.setAutoCommit(false);
         try{
+            // 与状态更新在同一事务内锁定已授权的处方，不区分越权和不存在。
+            boolean accessible;
+            try (PreparedStatement ps = cn.prepareStatement(
+                    "SELECT 1 FROM chufang WHERE cf_number=?" + access.sqlFilter() + " FOR UPDATE")) {
+                ps.setString(1, cf);
+                access.bindDoctor(ps, 2);
+                try (ResultSet rs = ps.executeQuery()) { accessible = rs.next(); }
+            }
+            if(!accessible){
+                cn.rollback();
+                response.sendError(404);
+                return;
+            }
             if("dispense".equals(act)){
                 // ---- 发药：只有「待发药」能发 ----
                 java.sql.PreparedStatement ps = cn.prepareStatement(
@@ -60,29 +72,10 @@ try{
                     throw new RuntimeException("只有「已发药」的处方才能退药");
                 }
 
-                // 把该处方每种药的数量加回库存
-                java.sql.PreparedStatement psD = cn.prepareStatement(
-                    "SELECT yao_code, shuliang FROM cf_item WHERE cf_number=?");
-                psD.setString(1, cf);
-                ResultSet rsD = psD.executeQuery();
-                List<Object[]> back = new ArrayList<Object[]>();
-                while(rsD.next()){
-                    back.add(new Object[]{ rsD.getString("yao_code"), rsD.getInt("shuliang") });
-                }
-                rsD.close(); psD.close();
-
-                java.sql.PreparedStatement psB = cn.prepareStatement(
-                    "UPDATE yaoku SET stock = stock + ? WHERE code = ?");
-                for(Object[] r : back){
-                    psB.setInt(1, (Integer) r[1]);
-                    psB.setString(2, (String) r[0]);
-                    psB.executeUpdate();
-                }
-                psB.close();
-
+                int count = PrescriptionLedger.voidDraftsAndRestock(cn, cf);
                 cn.commit();
-                com.hospital.Audit.log(loginname, "处方退药", "处方号 " + cf + " 回滚药品种类=" + back.size());
-                msg = "处方 " + cf + " 已退药，并已回滚 " + back.size() + " 种药品库存。";
+                com.hospital.Audit.log(loginname, "处方退药", "处方号 " + cf + " 作废草稿数=" + count);
+                msg = "处方 " + cf + " 已退药，库存已返还，已作废 " + count + " 条药费草稿。";
             }
         }catch(Exception ex){
             try{ cn.rollback(); }catch(Exception ignore){}

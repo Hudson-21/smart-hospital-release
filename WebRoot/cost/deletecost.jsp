@@ -12,7 +12,8 @@
 <%
      int id = 0;
      try{ id = Integer.parseInt(request.getParameter("id")); }catch(Exception ignore){}
-     int result = db.executeUpdate("delete from cost where id=?", id);
+     int result = db.executeUpdate("delete from cost where id=? and rx_item_id IS NULL", id);
+     if(result!=1){ response.sendError(409); return; }
      com.hospital.Audit.log((String)session.getAttribute("loginname"), "删除收费", "id=" + id);
 
   %>

@@ -22,8 +22,9 @@
 %>
   <%
   	if(id != 0) {
-  		db.executeUpdate("update cost set number=?, kebie=?, name=?, xiangmu=?, danjia=?, shuliang=?, jine=?, riqi=? where id=?",
+        int changed = db.executeUpdate("update cost set number=?, kebie=?, name=?, xiangmu=?, danjia=?, shuliang=?, jine=?, riqi=? where id=? and rx_item_id IS NULL",
   				number, kebie, name, xiangmu, danjia, shuliang, jine, riqi, id);
+            if(changed!=1){ response.sendError(409); return; }
   	} else {
   		db.executeUpdate("insert into cost(number,kebie,name,xiangmu,danjia,shuliang,jine,riqi) values(?,?,?,?,?,?,?,?)",
   				number, kebie, name, xiangmu, danjia, shuliang, jine, riqi);

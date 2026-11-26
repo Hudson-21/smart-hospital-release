@@ -4,9 +4,14 @@
 <%
 String loginname = (String)session.getAttribute("loginname");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
+String role = (String)session.getAttribute("usertype");
+if(!"病人".equals(role) && !"patient".equalsIgnoreCase(role)){response.sendError(403);return;}
+boolean bookingSuccess = Boolean.TRUE.equals(session.getAttribute("bookingSuccess"));
+if(bookingSuccess) session.removeAttribute("bookingSuccess");
 String myname = loginname;
 String sql = "SELECT * FROM guahao WHERE name=? ORDER BY id DESC";
 ResultSet rs = a.executeQuery(sql, myname);
+if(rs==null){response.sendError(500);return;}
 %>
 <html>
 <head><link rel="stylesheet" type="text/css" media="all" href="<%=request.getContextPath()%>/images/css1/ioa.css" /><title>我的挂号</title>
@@ -15,11 +20,12 @@ ResultSet rs = a.executeQuery(sql, myname);
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body class="h-business" bgcolor="#ffffff"><br>
+<% if(bookingSuccess){ %><p align="center" role="status" style="color:green">挂号成功</p><% } %>
 <table width="100%" border="0" cellspacing="0" cellpadding="0" class="pad5">
 <tr><td valign="top" align="left" class="pad5">
 <table width="100%" border="0" cellspacing="0" cellpadding="0" class="dqbg margb5">
 <tr><td width="2%" align="right" class="pad05"><img src="<%=request.getContextPath()%>/images/img2.gif" width="16" height="16"></td>
-<td width="98%" align="left" class="lan13b">个人中心 > 我的挂号（就诊人：<%=myname%>）</td></tr>
+<td width="98%" align="left" class="lan13b">个人中心 > 我的挂号（就诊人：<%=WebUtil.htmlEscape(myname)%>）</td></tr>
 </table>
 <table width="100%" border="0" cellspacing="1" cellpadding="0" class="table-border margb5">
 <tr>
@@ -27,6 +33,7 @@ ResultSet rs = a.executeQuery(sql, myname);
 <th width="12%" nowrap class="COLLECTION">科室</th>
 <th width="12%" nowrap class="COLLECTION">接诊医生</th>
 <th width="14%" nowrap class="COLLECTION">就诊日期</th>
+<th nowrap class="COLLECTION">时段</th>
 <th width="12%" nowrap class="COLLECTION">状态</th>
 <th width="20%" nowrap class="COLLECTION">备注</th>
 </tr>
@@ -40,6 +47,7 @@ while(rs.next()){
 <td align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("kebie")==null?"":rs.getString("kebie"))%></td>
 <td align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("doctor")==null?"":rs.getString("doctor"))%></td>
 <td align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("riqi")==null?"":rs.getString("riqi"))%></td>
+<td align="center"><% String shift=rs.getString("booking_shift"); %><%=shift==null||shift.isEmpty()?"时段未记录":WebUtil.htmlEscape(shift)%></td>
 <td align="center">
 <% String st=rs.getString("state"); if("已接诊".equals(st)){ %><span style="color:green">已接诊</span><% } else { %><span style="color:red">待接诊</span><% } %>
 </td>
@@ -47,7 +55,8 @@ while(rs.next()){
 </tr>
 <%
 }
-if(!has){ %><tr><td colspan="6" align="center" class="even">您还没有挂号记录，<a href="guahao.jsp" target="main">去挂号</a></td></tr><% }
+rs.close();
+if(!has){ %><tr><td colspan="7" align="center" class="even">您还没有挂号记录，<a href="guahao.jsp" target="main">去挂号</a></td></tr><% }
 %>
 </table>
 </td></tr></table>

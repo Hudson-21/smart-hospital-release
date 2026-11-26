@@ -5,16 +5,12 @@
 String loginname = (String)session.getAttribute("loginname");
 String usertype  = (String)session.getAttribute("usertype");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
-if(!"管理员".equals(usertype) && !"医生".equals(usertype)){
-    out.print("<script>alert('仅管理员/医生可查看处方');history.back();</script>"); return;
-}
+PrescriptionAccess access = PrescriptionAccess.forUser(loginname, usertype);
+if(!access.isAllowed()){response.sendError(403);return;}
 
-String where = "WHERE 1=1";
-java.util.List<Object> params = new java.util.ArrayList<Object>();
-// 医生只看自己开的方
-if("医生".equals(usertype)){ where += " AND doctor=?"; params.add(loginname); }
-
-ResultSet rs = a.executeQuery("SELECT id,cf_number,patient_name,doctor,kebie,zongjia,state,ctime,beizhu FROM chufang "+where+" ORDER BY id DESC", params.toArray());
+ResultSet rs = a.executeQuery("SELECT id,cf_number,patient_name,doctor,kebie,zongjia,state,ctime,beizhu FROM chufang WHERE 1=1"
+    + access.sqlFilter() + " ORDER BY id DESC", access.parameters());
+if(rs==null){response.sendError(500);return;}
 int cnt = 0;
 %>
 <html>
@@ -36,7 +32,7 @@ int cnt = 0;
 <tr><td valign="top" align="left" class="pad5">
 <table width="100%" border="0" cellspacing="0" cellpadding="0" class="dqbg margb5">
 <tr><td width="2%" align="right" class="pad05"><img src="<%=request.getContextPath()%>/images/img2.gif" width="16" height="16"></td>
-<td width="98%" align="left" class="lan13b"><%="医生".equals(usertype)?"医生工作台 > 我的处方 > ":""%>处方管理 > 处方列表</td></tr>
+<td width="98%" align="left" class="lan13b"><%=access.isDoctor()?"医生工作台 > 我的处方 > ":""%>处方管理 > 处方列表</td></tr>
 </table>
 
 <table width="100%" border="0" cellpadding="2" cellspacing="1" class="table-border margb5">
