@@ -85,12 +85,10 @@ public class AuthFilter implements Filter {
 	 * CSRF 校验豁免名单：这些 POST 端点不要求 _csrf token。
 	 *  - 登录/注册：此时会话刚被 login.jsp 主动 invalidate，token 无法可靠携带；
 	 *    且二者已有验证码 + 口令双重保护。
-	 *  - AI 接口：由前端 fetch 调用，写入的只是调用者自己的对话审计，无敏感副作用。
 	 * 其余所有 POST（增删改、开方、挂号等写操作）一律要求有效 token。
 	 */
 	private static final String[] CSRF_EXEMPT = {
-		"/check_login.jsp", "/do_register.jsp",
-		"/ai/api.jsp", "/ai/llm.jsp"
+		"/check_login.jsp", "/do_register.jsp"
 	};
 
 	@Override

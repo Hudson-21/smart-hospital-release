@@ -1,41 +1,7 @@
 <%@ page contentType="application/json; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ page import="java.io.*,java.net.*,java.util.*,java.util.regex.*,java.sql.*,com.hospital.*" %>
 <%!
-/*
- * ============================================================================
- *  全院统一 AI 网关（ai/llm.jsp）
- * ============================================================================
- *  供三个智能化场景调用的后端入口（同步 JSON 响应，非流式）：
- *    task=bingli_draft   医生端：根据病情简述生成病历草稿（SOAP 结构）
- *    task=bingli_qc      医生端：提交前病历质控（本地规则 + LLM 增强）
- *    task=bingli_explain 患者端：病历通俗解读（大白话）
- *    task=stats_query    管理员端：自然语言 -> 查询意图 -> 模板 SQL -> 统计数据
- *
- *  设计原则：
- *    1. LLM 只负责"生成草稿 / 解读 / 选模板参数"，绝不直接执行 LLM 生成的 SQL
- *    2. 无 API Key 或调用失败时，自动降级为本地规则（模拟模式），保证演示不中断
- *    3. 每次调用写入 ai_chat 表做审计留痕（role 记录任务类型）
- *    4. 配置与 ai/api.jsp 保持一致（同一平台同一模型）
- * ============================================================================
- */
-// ===== 配置外置：密钥从 /WEB-INF/llm.properties 读取，不再硬编码进源码 =====
-String API_URL = "https://api.siliconflow.cn/v1/chat/completions";
-String API_KEY = "";   // 由 jspInit() 从配置文件载入（空则走模拟模式）
-String MODEL   = "Qwen/Qwen2.5-7B-Instruct";
-public void jspInit(){
-  java.util.Properties p = new java.util.Properties();
-  try{
-    java.io.InputStream in = getServletConfig().getServletContext().getResourceAsStream("/WEB-INF/llm.properties");
-    if(in!=null){
-      p.load(new java.io.InputStreamReader(in, "UTF-8"));
-      in.close();
-      API_URL = p.getProperty("apiUrl", API_URL);
-      API_KEY = p.getProperty("apiKey", "");
-      MODEL   = p.getProperty("model", MODEL);
-    }
-  }catch(Exception ignore){}
-}
-
+// 病历草稿、质控、解读与统计仅在本地处理；不读取模型配置，不发出模型请求。
 // ============================ 通用工具 ============================
 
 String escape(String s){
@@ -137,65 +103,8 @@ int jsonIntField(String json, String key, int def){
     }catch(Exception ex){ return def; }
 }
 
-// 同步调用 LLM（非流式）。成功返回文本，失败/无Key 返回 null
-String callLlm(String sysPrompt, String userPrompt){
-    if(API_KEY==null || API_KEY.trim().isEmpty()) return null;
-    HttpURLConnection conn = null;
-    try{
-        String body = "{\"model\":\""+MODEL+"\",\"temperature\":0.3,\"messages\":["
-            + "{\"role\":\"system\",\"content\":\""+escape(sysPrompt)+"\"},"
-            + "{\"role\":\"user\",\"content\":\""+escape(userPrompt)+"\"}]}";
-        URL url = new URL(API_URL);
-        conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setConnectTimeout(10000);
-        conn.setReadTimeout(60000);
-        conn.setRequestProperty("Content-Type","application/json; charset=UTF-8");
-        conn.setRequestProperty("Authorization","Bearer "+API_KEY);
-        OutputStream os = conn.getOutputStream();
-        os.write(body.getBytes("UTF-8"));
-        os.flush(); os.close();
-        int code = conn.getResponseCode();
-        if(code!=200){ conn.disconnect(); return null; }
-        BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(),"UTF-8"));
-        StringBuilder all=new StringBuilder(); String line;
-        while((line=br.readLine())!=null) all.append(line);
-        br.close(); conn.disconnect();
-        // 解析 choices[0].message.content：定位 "message" 后的 "content"
-        String resp = all.toString();
-        int mi = resp.indexOf("\"message\"");
-        int ci = resp.indexOf("\"content\"", mi>=0?mi:0);
-        if(ci<0) return null;
-        int colon = resp.indexOf(":",ci+9);
-        if(colon<0) return null;
-        int st=colon+1;
-        while(st<resp.length() && (resp.charAt(st)==' '||resp.charAt(st)=='\t')) st++;
-        if(st>=resp.length()||resp.charAt(st)!='"') return null;
-        st++;
-        StringBuilder b=new StringBuilder();
-        for(int i=st;i<resp.length();i++){
-            char c=resp.charAt(i);
-            if(c=='\\' && i+1<resp.length()){
-                char n=resp.charAt(i+1);
-                if(n=='n') b.append('\n'); else if(n=='r') b.append('\r');
-                else if(n=='t') b.append('\t'); else if(n=='"') b.append('"');
-                else if(n=='\\') b.append('\\');
-                else if(n=='u' && i+5<resp.length()){
-                    try{ b.append((char)Integer.parseInt(resp.substring(i+2,i+6),16)); i+=4; }
-                    catch(Exception ex){ b.append(n); }
-                } else b.append(n);
-                i++; continue;
-            }
-            if(c=='"') break;
-            b.append(c);
-        }
-        return b.toString();
-    }catch(Exception ex){
-        if(conn!=null) try{conn.disconnect();}catch(Exception e2){}
-        return null;
-    }
-}
+
+
 
 String escapeSql(String s){
     if(s==null) return "";
@@ -216,55 +125,10 @@ void saveAudit(String who, String role, String content){
 
 // ============================ 任务一：病历草稿 ============================
 
-// 模拟模式：按关键词模板生成草稿（无 Key / LLM 失败时兜底）
-String mockDraft(String patient, String kebie, String desc){
-    String d = desc==null?"":desc.trim();
-    String zd;
-    if(d.matches(".*(发热|发烧|咳嗽|咽|感冒|流涕|鼻塞|嗓子).*")) zd="急性上呼吸道感染";
-    else if(d.matches(".*(腹痛|腹泻|恶心|呕吐|胃|拉肚).*")) zd="急性胃肠炎";
-    else if(d.matches(".*(头痛|头晕|眩晕).*")) zd="偏头痛（待排）";
-    else if(d.matches(".*(腰|腿|关节|扭|摔|崴|外伤|肿痛).*")) zd="软组织挫伤";
-    else if(d.matches(".*(皮疹|痒|过敏|红疹).*")) zd="过敏性皮炎";
-    else if(d.matches(".*(尿频|尿急|尿痛).*")) zd="尿路感染";
-    else zd="初诊待查";
-    StringBuilder c=new StringBuilder();
-    c.append("主诉：").append(d.isEmpty()?"不适待述":d).append("。\n");
-    c.append("现病史：患者").append(patient==null||patient.isEmpty()?"":patient)
-     .append("自述").append(d.isEmpty()?"身体不适":d).append("，起病以来精神可，饮食睡眠尚可，二便正常，体重无明显变化。\n");
-    c.append("既往史：既往体健，否认药物食物过敏史。\n");
-    c.append("体格检查：神志清楚，查体合作，生命体征平稳。\n");
-    c.append("处理意见：1.完善相关检查以明确诊断；2.予以对症支持治疗；3.注意休息、清淡饮食，不适随诊。");
-    return "{\"zhenduan\":"+toJson(zd)+",\"content\":"+toJson(c.toString())+"}";
-}
-
-// 病历草稿：优先 LLM，失败走模拟
-String taskDraft(String patient, String kebie, String desc){
-    String sys = "你是门诊病历书写助手。根据医生提供的病情简述生成规范的门诊病历草稿。\n" +
-        "要求：\n" +
-        "1. 严格只输出 JSON，不要输出任何其他文字，格式：{\"zhenduan\":\"初步诊断\",\"content\":\"病历正文\"}\n" +
-        "2. zhenduan：最可能的一个初步诊断，不超过20字；\n" +
-        "3. content 按以下结构书写（用换行分隔）：\n" +
-        "   主诉：主要症状+持续时间\n" +
-        "   现病史：起病情况、症状特点、伴随症状、一般情况\n" +
-        "   既往史：常规问诊描述（含过敏史）\n" +
-        "   体格检查：常规查体描述\n" +
-        "   处理意见：1.xxx 2.xxx 3.xxx（编号列出）\n" +
-        "4. 语言符合中文病历书写规范，简洁专业；\n" +
-        "5. 信息不足处用合理的一般性描述，禁止编造具体检查数值。";
-    String user = "患者："+(patient==null?"":patient)+"（"+(kebie==null?"":kebie)+"科）。病情简述："+(desc==null?"":desc);
-    String llm = callLlm(sys, user);
-    if(llm!=null){
-        String obj = extractJsonObj(llm);
-        if(obj!=null){
-            String zd = jsonField(obj,"zhenduan");
-            String ct = jsonField(obj,"content");
-            if(zd!=null && !zd.trim().isEmpty() && ct!=null && !ct.trim().isEmpty()){
-                return "{\"zhenduan\":"+toJson(zd.trim())+",\"content\":"+toJson(ct.trim())+",\"mode\":\"llm\"}";
-            }
-        }
-    }
-    String mock = mockDraft(patient, kebie, desc);
-    return mock.substring(0, mock.length()-1) + ",\"mode\":\"mock\"}";
+// 仅整理医生输入；不推测诊断、阴性发现或处理意见。
+String taskDraft(String desc){
+    String body="病情简述（已提供）："+desc.trim()+"\n过敏史：待询问\n体格检查：待填写\n处理意见：待填写";
+    return "{\"zhenduan\":\"\",\"content\":"+toJson(body)+",\"mode\":\"local\"}";
 }
 
 // ============================ 任务二：病历质控 ============================
@@ -296,34 +160,9 @@ java.util.List<String> localQc(String zhenduan, String content){
     return ws;
 }
 
-// 质控：本地规则为主，有 Key 时叠加 LLM 逻辑一致性检查
+// 质控只用本地规则
 String taskQc(String patient, String zhenduan, String content){
     java.util.List<String> ws = localQc(zhenduan, content);
-    String llmWarn = null;
-    if(API_KEY!=null && !API_KEY.trim().isEmpty()){
-        String sys = "你是病历质控助手。检查这份病历的诊断与内容是否一致、有无明显医学常识错误、有无重要遗漏。\n" +
-            "只输出 JSON：{\"warnings\":[\"问题1\",\"问题2\"]}；若无问题输出 {\"warnings\":[]}。不要输出其他文字。警告最多3条，每条不超过40字。";
-        String user = "患者："+(patient==null?"":patient)+"\n诊断："+(zhenduan==null?"":zhenduan)
-            +"\n病历内容："+(content==null?"":content);
-        String llm = callLlm(sys,user);
-        if(llm!=null){
-            String obj = extractJsonObj(llm);
-            if(obj!=null){
-                // 提取 warnings 数组中的字符串
-                Pattern p = Pattern.compile("\"warnings\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
-                Matcher m = p.matcher(obj);
-                if(m.find()){
-                    Pattern sp = Pattern.compile("\"((?:[^\"\\\\]|\\\\.)*)\"");
-                    Matcher sm = sp.matcher(m.group(1));
-                    int added=0;
-                    while(sm.find() && added<3){
-                        String w = unescape(sm.group(1)).trim();
-                        if(!w.isEmpty()){ ws.add(w); added++; }
-                    }
-                }
-            }
-        }
-    }
     StringBuilder sb=new StringBuilder("{\"pass\":").append(ws.isEmpty()).append(",\"warnings\":[");
     for(int i=0;i<ws.size();i++){ if(i>0) sb.append(","); sb.append(toJson(ws.get(i))); }
     sb.append("]}");
@@ -357,36 +196,6 @@ String mockExplain(String zhenduan, String content){
         + "}";
 }
 
-// 通俗解读：优先 LLM，失败走模拟
-String taskExplain(String patient, String kebie, String doctor, String zhenduan, String content, String riqi){
-    String sys = "你是面向患者的病历解读助手，任务是把医生写的病历\"翻译\"成初中文化程度患者能听懂的大白话。\n" +
-        "要求：\n" +
-        "1. 严格只输出 JSON：{\"what\":\"这是什么病\",\"treat\":\"医生做了什么处理\",\"care\":\"回家注意什么\",\"warning\":\"什么情况要立即复诊\"}\n" +
-        "2. what：2-3句话通俗解释这个诊断是什么；\n" +
-        "3. treat：解释医生的处理措施在做什么；\n" +
-        "4. care：3-4条日常注意事项，用\\n分隔；\n" +
-        "5. warning：2-3个需要立即复诊的危险信号，用\\n分隔；\n" +
-        "6. 语气亲切易懂，专业术语必须用括号解释；\n" +
-        "7. 禁止给出新的诊断、禁止修改医嘱、禁止推荐具体药物剂量。";
-    String user = "患者："+(patient==null?"":patient)+"；科室："+(kebie==null?"":kebie)
-        +"；主治医生："+(doctor==null?"":doctor)+"；日期："+(riqi==null?"":riqi)
-        +"\n诊断："+(zhenduan==null?"":zhenduan)
-        +"\n病历原文："+(content==null?"":content);
-    String llm = callLlm(sys,user);
-    if(llm!=null){
-        String obj = extractJsonObj(llm);
-        if(obj!=null){
-            String w=jsonField(obj,"what"), t=jsonField(obj,"treat"), c=jsonField(obj,"care"), g=jsonField(obj,"warning");
-            if(w!=null && !w.trim().isEmpty()){
-                return "{\"what\":"+toJson(w.trim())
-                    + ",\"treat\":"+toJson(t==null?"请以医嘱为准":t.trim())
-                    + ",\"care\":"+toJson(c==null?"按医嘱执行":c.trim())
-                    + ",\"warning\":"+toJson(g==null?"症状加重请及时复诊":g.trim())+"}";
-            }
-        }
-    }
-    return mockExplain(zhenduan, content);
-}
 
 // ============================ 任务四：自然语言统计查询 ============================
 
@@ -413,7 +222,7 @@ String buildStatsSql(String metric, String dim, int days){
     boolean filter = days>0;
     String dateCond = filter ? " WHERE riqi >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL "+days+" DAY),'%Y-%m-%d')" : "";
     if("fee".equals(metric)){
-        return "SELECT xiangmu AS nm, SUM(jine+0) AS v FROM cost GROUP BY xiangmu ORDER BY v DESC";
+        return "SELECT xiangmu AS nm, SUM(jine+0) AS v FROM cost WHERE (state IS NULL OR state <> '已作废') GROUP BY xiangmu ORDER BY v DESC";
     }
     if("patient".equals(metric)){
         return "SELECT kebie AS nm, COUNT(*) AS v FROM patient GROUP BY kebie ORDER BY v DESC";
@@ -431,33 +240,8 @@ String buildStatsSql(String metric, String dim, int days){
 // 执行统计查询，返回 {title, metric, dim, days, note, rows:[{name,value}], conclusion} 的 JSON
 String taskStats(String who, String q){
     String metric="guahao", dim="keshi"; int days=0;
-    boolean llmParsed = false;
-    // 1) 意图解析：LLM 优先，失败走规则
-    if(API_KEY!=null && !API_KEY.trim().isEmpty()){
-        String sys = "你是医院管理系统的统计查询解析器。把管理员的自然语言问题转换为JSON查询意图。\n" +
-            "可选值：\n" +
-            "metric: \"guahao\"(挂号量) | \"fee\"(收费金额) | \"patient\"(在册病人)\n" +
-            "dim: \"keshi\"(按科室) | \"doctor\"(按医生) | \"day\"(按日期) | \"xiangmu\"(按收费项目)\n" +
-            "days: 0(全部) | 7 | 30 | 90 (统计最近N天)\n" +
-            "规则：问费用时dim用\"xiangmu\"；问挂号时提到医生按医生、提到趋势/每天按日期、默认按科室；提到一周/7天days=7、一个月/30天days=30、全部/历史days=0。\n" +
-            "只输出JSON，格式：{\"metric\":\"...\",\"dim\":\"...\",\"days\":7}";
-        String llm = callLlm(sys, q==null?"挂号统计":q);
-        if(llm!=null){
-            String obj = extractJsonObj(llm);
-            if(obj!=null){
-                String m=jsonField(obj,"metric"), d=jsonField(obj,"dim");
-                int dy=jsonIntField(obj,"days",-1);
-                if(m!=null && (m.equals("guahao")||m.equals("fee")||m.equals("patient"))) metric=m;
-                if(d!=null && (d.equals("keshi")||d.equals("doctor")||d.equals("day")||d.equals("xiangmu"))) dim=d;
-                if(dy==0||dy==7||dy==30||dy==90) days=dy;
-                llmParsed = true;
-            }
-        }
-    }
-    if(!llmParsed){
-        String[] ri = ruleIntent(q);
-        metric=ri[0]; dim=ri[1]; days=Integer.parseInt(ri[2]);
-    }
+    String[] ri=ruleIntent(q);
+    metric=ri[0]; dim=ri[1]; days=Integer.parseInt(ri[2]);
     // 2) 白名单最终校验（防 LLM 幻觉值）
     if(!metric.equals("guahao")&&!metric.equals("fee")&&!metric.equals("patient")) metric="guahao";
     if(!dim.equals("keshi")&&!dim.equals("doctor")&&!dim.equals("day")&&!dim.equals("xiangmu")) dim="keshi";
@@ -527,9 +311,10 @@ String taskStats(String who, String q){
 }
 %>
 <%
+if(!"POST".equals(request.getMethod())){response.setHeader("Allow","POST");response.sendError(405);return;}
 request.setCharacterEncoding("UTF-8");
 response.setContentType("application/json; charset=UTF-8");
-response.setHeader("Cache-Control","no-cache");
+response.setHeader("Cache-Control","no-store");
 
 String loginname = (String)session.getAttribute("loginname");
 if(loginname==null||"".equals(loginname)){
@@ -552,8 +337,8 @@ if("bingli_draft".equals(task)){
         out.print("{\"ok\":false,\"error\":\"请先填写病情简述（或选择病人自动带出病症）\"}");
         return;
     }
-    String data = taskDraft(patient, kebie, desc.trim());
-    saveAudit(loginname, "病历草稿", (patient==null?"":patient)+" | 简述："+desc.trim());
+    String data = taskDraft(desc);
+    saveAudit(loginname, "病历草稿", "本地处理完成");
     out.print("{\"ok\":true,\"data\":"+data+"}");
     return;
 }
@@ -569,26 +354,34 @@ if("bingli_qc".equals(task)){
     String zhenduan= request.getParameter("zhenduan");
     String content = request.getParameter("content");
     String data = taskQc(patient, zhenduan, content);
-    saveAudit(loginname, "病历质控", (patient==null?"":patient)+" | "+data);
+    saveAudit(loginname, "病历质控", "本地处理完成");
     out.print("{\"ok\":true,\"data\":"+data+"}");
     return;
 }
 
 // ---------- 任务三：病历通俗解读（患者/医生均可，登录+审计） ----------
 if("bingli_explain".equals(task)){
-    String patient = request.getParameter("patient");
-    String kebie   = request.getParameter("kebie");
-    String doctor  = request.getParameter("doctor");
-    String zhenduan= request.getParameter("zhenduan");
-    String content = request.getParameter("content");
-    String riqi    = request.getParameter("riqi");
-    if((zhenduan==null||zhenduan.trim().isEmpty()) && (content==null||content.trim().isEmpty())){
-        out.print("{\"ok\":false,\"error\":\"病历内容为空，无法解读\"}");
-        return;
+    String role=(String)session.getAttribute("usertype");
+    boolean doctor="医生".equals(role)||"doctor".equalsIgnoreCase(role);
+    boolean patient="病人".equals(role)||"patient".equalsIgnoreCase(role);
+    if(!patient && !doctor){ response.sendError(403); return; }
+    int id; try{ id=Integer.parseInt(request.getParameter("id")); if(id<1)throw new NumberFormatException(); }
+    catch(NumberFormatException e){response.sendError(400);return;}
+    if(!(session.getAttribute("uid") instanceof Integer)){response.sendError(403);return;}
+    String scope=doctor ? "b.doctor=?" : "((b.visit_id IS NULL AND b.patientname=?) OR EXISTS(SELECT 1 FROM guahao g WHERE g.id=b.visit_id AND g.patient_account_id=?))";
+    String data;
+    synchronized(com.hospital.Dbcoon.class){
+        com.hospital.Dbcoon db=new com.hospital.Dbcoon();
+        try(java.sql.PreparedStatement stmt=db.getConnection().prepareStatement("SELECT b.zhenduan,b.content FROM bingli b WHERE b.id=? AND "+scope)){
+            stmt.setInt(1,id);stmt.setString(2,loginname);if(!doctor)stmt.setInt(3,(Integer)session.getAttribute("uid"));
+            try(java.sql.ResultSet row=stmt.executeQuery()){
+                if(!row.next()){response.sendError(404);return;}
+                data=mockExplain(row.getString(1),row.getString(2));
+            }
+        }
     }
-    String data = taskExplain(patient, kebie, doctor, zhenduan, content, riqi);
-    saveAudit(loginname, "病历解读", (patient==null?"":patient)+" | 诊断："+(zhenduan==null?"":zhenduan));
-    out.print("{\"ok\":true,\"data\":"+data+"}");
+    saveAudit(loginname,"病历解读","本地模板完成");
+    out.print("{\"ok\":true,\"source\":\"local\",\"data\":"+data+"}");
     return;
 }
 
@@ -607,7 +400,7 @@ if("stats_query".equals(task)){
     }
     String result = taskStats(loginname, q.trim());
     if(result.startsWith("{\"ok\":true")){
-        saveAudit(loginname, "统计查询", q.trim());
+        saveAudit(loginname, "统计查询", "本地处理完成");
     }
     out.print(result);
     return;

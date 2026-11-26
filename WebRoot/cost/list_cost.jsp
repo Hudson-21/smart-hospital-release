@@ -199,14 +199,14 @@ A:HOVER {
 								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("xiangmu") == null ? "" : rs.getString("xiangmu"))%></td>
 								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("danjia") == null ? "" : rs.getString("danjia"))%></td>
 								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("shuliang") == null ? "" : rs.getString("shuliang"))%></td>
-								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("jine") == null ? "" : rs.getString("jine"))%></td>
+								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("jine") == null ? "" : rs.getString("jine"))%> <%=com.hospital.WebUtil.htmlEscape(rs.getString("state")==null?"":rs.getString("state"))%></td>
 								<td nowrap align="center"><%=com.hospital.WebUtil.htmlEscape(rs.getString("riqi") == null ? "" : rs.getString("riqi"))%></td>
 								
 
 
 								<td nowrap align="center">
-									<a href="modifycost.jsp?id=<%=id%>">修改</a> | <form action="deletecost.jsp" method="post" style="display:inline;margin:0" onsubmit="return confirm('确定删除该条收费记录吗？该操作不可撤销，请确认！');">
-<input type="hidden" name="_csrf" value="<%=com.hospital.Csrf.token(session)%>"><input type="hidden" name="id" value="<%=id%>"><button type="submit" style="background:none;border:none;color:#0066cc;cursor:pointer;text-decoration:underline;font-size:12pt;padding:0;font-family:inherit;">删除</button></form>
+									<% if(rs.getObject("rx_item_id")==null){ %><a href="modifycost.jsp?id=<%=id%>">修改</a> | <form action="deletecost.jsp" method="post" style="display:inline;margin:0" onsubmit="return confirm('确定删除该条收费记录吗？该操作不可撤销，请确认！');">
+<input type="hidden" name="_csrf" value="<%=com.hospital.Csrf.token(session)%>"><input type="hidden" name="id" value="<%=id%>"><button type="submit" style="background:none;border:none;color:#0066cc;cursor:pointer;text-decoration:underline;font-size:12pt;padding:0;font-family:inherit;">删除</button></form><% }else{ %>处方药费（只读）<% } %>
 								</td>
 
 							</tr>

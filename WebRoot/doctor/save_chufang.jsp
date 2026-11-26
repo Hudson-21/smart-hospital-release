@@ -60,7 +60,11 @@ try{
             rsI.close();
         }
     }
-}catch(Exception ignore){ /* 规则表不可用时静默降级，不影响正常开方 */ }
+}catch(Exception lookupFailure){
+    response.setStatus(503);
+    out.print("<p role='alert'>配伍检查未完成，本次处方未保存、未扣库存、未计费。请稍后重试。</p><a href='add_chufang.jsp'>返回开方</a>");
+    return;
+}
 
 // 命中禁忌 -> 直接拦截，不写任何数据
 if(!banned.isEmpty()){
@@ -108,7 +112,7 @@ try{
         Connection cn = a.getConnection();
         cn.setAutoCommit(false);
         try{
-            String cfNumber = "CF"+System.currentTimeMillis();
+            String cfNumber = "CF"+UUID.randomUUID().toString().replace("-", "");
             // 1) 头表
             java.sql.PreparedStatement psH = cn.prepareStatement(
                 "INSERT INTO chufang(cf_number,patient_name,doctor,kebie,zongjia,state,ctime,beizhu) VALUES(?,?,?,?,?,?,NOW(),?)");
@@ -122,7 +126,7 @@ try{
             psH.executeUpdate();
             psH.close();
 
-            double total = 0;
+            java.math.BigDecimal total = java.math.BigDecimal.ZERO;
             // 2) 明细 + 3) 扣库存 + 4) 写 cost 草稿
             for(Object[] row : rows){
                 String code = (String)row[0];
@@ -136,28 +140,35 @@ try{
                     rsY.close(); psY.close(); throw new RuntimeException("药品 "+code+" 不存在或已下架");
                 }
                 String yaoName = rsY.getString("name");
-                double price = rsY.getDouble("price");
+                java.math.BigDecimal price = rsY.getBigDecimal("price");
                 int stock = rsY.getInt("stock");
                 rsY.close(); psY.close();
 
                 if(stock < qty){
                     throw new RuntimeException("药品「"+yaoName+"」库存不足（库存 "+stock+" < 需开 "+qty+"）");
                 }
-                double jine = price * qty;
-                total += jine;
+                if(price==null || price.signum()<0) throw new SQLException("药品价格异常");
+                java.math.BigDecimal jine = price.multiply(java.math.BigDecimal.valueOf(qty));
+                total = total.add(jine);
 
                 // 写明细
                 java.sql.PreparedStatement psI = cn.prepareStatement(
-                    "INSERT INTO cf_item(cf_number,yao_code,yao_name,price,shuliang,jine,usage_note) VALUES(?,?,?,?,?,?,?)");
+                    "INSERT INTO cf_item(cf_number,yao_code,yao_name,price,shuliang,jine,usage_note) VALUES(?,?,?,?,?,?,?)", Statement.RETURN_GENERATED_KEYS);
                 psI.setString(1, cfNumber);
                 psI.setString(2, code);
                 psI.setString(3, yaoName);
-                psI.setDouble(4, price);
+                psI.setBigDecimal(4, price);
                 psI.setInt(5, qty);
-                psI.setDouble(6, jine);
+                psI.setBigDecimal(6, jine);
                 psI.setString(7, usage);
-                psI.executeUpdate();
-                psI.close();
+                int itemId;
+                try (PreparedStatement item = psI) {
+                    if(item.executeUpdate()!=1) throw new SQLException("处方明细未写入");
+                    try(ResultSet keys=item.getGeneratedKeys()){
+                        if(!keys.next()) throw new SQLException("处方明细编号未生成");
+                        itemId=keys.getInt(1);
+                    }
+                }
 
                 // 扣库存
                 java.sql.PreparedStatement psK = cn.prepareStatement(
@@ -170,24 +181,25 @@ try{
                 // 写 cost 草稿（关联到这个处方）
                 String bedNo = "B"+System.currentTimeMillis();
                 java.sql.PreparedStatement psC = cn.prepareStatement(
-                    "INSERT INTO cost(number,kebie,name,xiangmu,danjia,shuliang,jine,riqi,state) VALUES(?,?,?,?,?,?,?,?,?)");
+                    "INSERT INTO cost(number,kebie,name,xiangmu,danjia,shuliang,jine,riqi,state,rx_item_id) VALUES(?,?,?,?,?,?,?,?,?,?)");
                 psC.setString(1, bedNo);
                 psC.setString(2, pkb);
                 psC.setString(3, pname.trim());
                 psC.setString(4, "药品:"+yaoName);
-                psC.setString(5, String.format("%.2f",price));
+                psC.setString(5, price.toPlainString());
                 psC.setString(6, String.valueOf(qty));
-                psC.setString(7, String.format("%.2f",jine));
+                psC.setString(7, jine.toPlainString());
                 psC.setString(8, new java.sql.Date(System.currentTimeMillis()).toString());
                 psC.setString(9, "草稿");
-                psC.executeUpdate();
+                psC.setInt(10, itemId);
+                if(psC.executeUpdate()!=1) throw new SQLException("关联药费未写入");
                 psC.close();
             }
 
             // 5) 回写总价
             java.sql.PreparedStatement psU = cn.prepareStatement(
                 "UPDATE chufang SET zongjia=? WHERE cf_number=?");
-            psU.setDouble(1, total);
+            psU.setBigDecimal(1, total);
             psU.setString(2, cfNumber);
             psU.executeUpdate();
             psU.close();
@@ -199,19 +211,19 @@ try{
                 warnHtml.append("<div style='margin:5px 0;'>· ")
                         .append(com.hospital.WebUtil.htmlEscape(w)).append("</div>");
             }
-            msg = "<span style='color:green'>处方保存成功！<br>处方号："+cfNumber+"<br>药品："+rows.size()+" 种，合计金额：¥"+String.format("%.2f",total)+"<br>已自动扣减库存并生成 "+rows.size()+" 条费用草稿，请到费用页面确认结算。</span>"
+            msg = "<span style='color:green'>处方保存成功！<br>处方号："+cfNumber+"<br>药品："+rows.size()+" 种，合计金额：¥"+String.format(java.util.Locale.ROOT,"%.2f",total)+"<br>已自动扣减库存并生成 "+rows.size()+" 条费用草稿，请到费用页面确认结算。</span>"
                 + (warned.isEmpty() ? ""
                    : "<div style='margin:18px auto 0;max-width:640px;padding:12px 16px;background:#fff8e1;border-left:3px solid #f39c12;text-align:left;font-size:13px;color:#8a5300;line-height:1.8;'>"
                      + "<b>用药提醒（"+warned.size()+" 项 · 非禁忌，已放行）</b>" + warnHtml + "</div>");
         }catch(Exception ex){
             try{ cn.rollback(); }catch(Exception ignore){}
-            msg = "<span style='color:red'>开方失败："+ex.getMessage()+"（已回滚库存）</span>";
+            msg = "<span style='color:red'>开方失败："+WebUtil.htmlEscape(ex.getMessage())+"（已回滚库存）</span>";
         }finally{
             try{ cn.setAutoCommit(true); }catch(Exception ignore){}
         }
     }
 }catch(Exception ex){
-    msg = "<span style='color:red'>开方失败："+ex.getMessage()+"</span>";
+    msg = "<span style='color:red'>开方失败："+WebUtil.htmlEscape(ex.getMessage())+"</span>";
 }
 
 // 用一个 GET 表单把 msg 回传到列表页不方便，直接刷本页显示

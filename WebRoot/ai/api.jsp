@@ -16,13 +16,15 @@
  *   2) DeepSeek  : API_URL = https://api.deepseek.com/v1/chat/completions , MODEL = deepseek-chat
  *   3) 腾讯混元  : API_URL = https://api.hunyuan.cloud.tencent.com/v1/chat/completions , MODEL = hunyuan-t1
  *   4) OpenAI    : API_URL = https://api.openai.com/v1/chat/completions , MODEL = gpt-3.5-turbo
- * 如果 API_KEY 留空，则自动走"关键词模拟导诊"兜底，系统照样能演示。
+ * 外发另需服务端显式启用及用户逐次同意。如果 API_KEY 留空，则自动走"关键词模拟导诊"兜底，系统照样能演示。
  */
 // ===== 配置外置：从 /WEB-INF/llm.properties 读取（密钥不再硬编码进源码/仓库）=====
 String API_URL = "https://api.siliconflow.cn/v1/chat/completions";
 String API_KEY = "";   // 由 jspInit() 从 /WEB-INF/llm.properties 载入；留空则自动走本地模拟导诊
 String MODEL   = "Qwen/Qwen2.5-7B-Instruct";
 
+boolean externalEnabled=false;
+int readTimeout=15000;
 public void jspInit(){
     java.util.Properties p = new java.util.Properties();
     try{
@@ -31,7 +33,7 @@ public void jspInit(){
         if(in != null){
             p.load(new java.io.InputStreamReader(in, "UTF-8"));
             in.close();
-            API_URL = p.getProperty("apiUrl", API_URL);
+            externalEnabled=Boolean.parseBoolean(p.getProperty("triageExternalEnabled","false")); readTimeout=Math.min(60000,Math.max(1000,Integer.parseInt(p.getProperty("triageReadTimeoutMs","15000")))); API_URL = p.getProperty("apiUrl", API_URL);
             API_KEY = p.getProperty("apiKey", "");
             MODEL   = p.getProperty("model", MODEL);
         }
@@ -426,171 +428,66 @@ void sendSource(javax.servlet.jsp.JspWriter out, String source, String model, St
         + ",\"detail\":" + toJson(detail) + ",\"reset\":" + reset + "}}\n\n");
     out.flush();
 }
-void saveChat(String who, String role, String content, String dept){
-  if(who==null||who.isEmpty()||content==null||content.isEmpty()) return;
-  try{
-    com.hospital.Dbcoon db = new com.hospital.Dbcoon();
-    if(content.length()>500) content = content.substring(0,500);
-    db.executeUpdate("INSERT INTO ai_chat(loginname,role,content,dept) VALUES(?,?,?,?)",
-            who, role, content, dept==null?"":dept);
-    db.close();
-  }catch(Exception ex){ /* 存储失败不影响导诊 */ }
+void auditTriage(String who,String outcome){
+    new com.hospital.Dbcoon().executeUpdate("INSERT INTO ai_chat(loginname,role,content) VALUES(?,?,?)",who,"导诊",outcome);
 }
 %>
 <%
+if(!"POST".equals(request.getMethod())){response.setHeader("Allow","POST");response.sendError(405);return;}
 request.setCharacterEncoding("UTF-8");
-// 设置为 SSE 流式响应
+response.setHeader("Cache-Control","no-store");
+String loginname=(String)session.getAttribute("loginname");
+String lastText=request.getParameter("msg");
+if(lastText==null || lastText.trim().isEmpty() || lastText.length()>2000){response.sendError(400);return;}
 response.setContentType("text/event-stream;charset=UTF-8");
-response.setHeader("Cache-Control", "no-cache");
-response.setHeader("Pragma", "no-cache");
-response.setHeader("Connection", "keep-alive");
-response.setBufferSize(0);  // 禁用缓冲，立即输出
-
-// 当前登录用户（用于服务端对话存储）
-String loginname = (String)session.getAttribute("loginname");
-
-// 结构化问诊参数（来自前端「智能问诊」问卷）
-String qPart = request.getParameter("part");
-String qSyms = request.getParameter("syms");
-String qDur  = request.getParameter("dur");
-String qAcc  = request.getParameter("acc");
-boolean useQuestionnaire = (qPart!=null && !qPart.trim().isEmpty());
-
-String raw = request.getParameter("messages");
-if (raw == null) raw = "[]";
-String userText = request.getParameter("msg");
-if (userText == null) userText = "";
-
-// 解析 messages
-List<String> roles = new ArrayList<String>();
-List<String> contents = new ArrayList<String>();
-Pattern p = Pattern.compile("\"role\"\\s*:\\s*\"(\\w+)\"\\s*,\\s*\"content\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-Matcher m = p.matcher(raw);
-while (m.find()) {
-    roles.add(m.group(1));
-    contents.add(unescape(m.group(2)));
-}
-if (contents.isEmpty() && !userText.isEmpty()) {
-    roles.add("user");
-    contents.add(userText);
-}
-
-String lastText = contents.isEmpty() ? "" : contents.get(contents.size() - 1);
-
-// 确定推荐科室：结构化问诊优先，否则按关键词识别
+String qPart=request.getParameter("part"),qSyms=request.getParameter("syms"),qDur=request.getParameter("dur"),qAcc=request.getParameter("acc");
+boolean useQuestionnaire=qPart!=null && !qPart.trim().isEmpty();
 String deptName = useQuestionnaire ? triageByQuestionnaire(qPart, qSyms, qDur, qAcc) : detectDept(lastText);
 // 文本回复内容
 String replyText = useQuestionnaire
     ? buildStructuredReply(qPart, qSyms, qDur, qAcc, deptName)
     : mockTriage(lastText);
 
-if (API_KEY == null || API_KEY.trim().isEmpty()) {
-    sendSource(out, "local", "", "未配置模型服务", false);
-    // ===== 无 Key：模拟导诊兜底，按流式输出 =====
-    streamText(out, replyText);
-    saveChat(loginname, "user", lastText, deptName);
-    saveChat(loginname, "assistant", replyText, deptName);
-    if (deptName != null) sendCard(out, buildDeptCard(deptName));
-    sendDone(out);
-} else {
-    // ===== 有 Key：调用真实大模型流式接口 =====
-    try {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\"model\":\"").append(MODEL).append("\",\"temperature\":0.7,\"stream\":true,\"messages\":[");
-        sb.append("{\"role\":\"system\",\"content\":\"").append(escape(SYSTEM_PROMPT)).append("\"}");
-        for (int i = 0; i < roles.size(); i++) {
-            sb.append(",{\"role\":\"").append(roles.get(i)).append("\",\"content\":\"")
-              .append(escape(contents.get(i))).append("\"}");
-        }
-        sb.append("]}");
-
-        URL url = new URL(API_URL);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setDoInput(true);
-        conn.setConnectTimeout(15000);
-        conn.setReadTimeout(60000);  // 流式读取需要较长超时
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conn.setRequestProperty("Authorization", "Bearer " + API_KEY);
-        conn.setRequestProperty("Accept", "text/event-stream");
-        OutputStream os = conn.getOutputStream();
-        os.write(sb.toString().getBytes("UTF-8"));
-        os.flush();
-        os.close();
-
-        int code = conn.getResponseCode();
-        InputStream is = (code == 200) ? conn.getInputStream() : conn.getErrorStream();
-        BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-
-        if (code != 200) {
-            // —— 收集错误体以便排查 ——
-            StringBuilder err = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) err.append(line);
-            br.close();
-            conn.disconnect();
-            // —— 按状态码分类，便于前端 / 用户立刻看到降级原因 ——
-            String reason;
-            if (code == 401)       reason = "AI 密钥失效或账户欠费";
-            else if (code == 403)  reason = "AI 服务拒绝访问（权限/区域）";
-            else if (code == 429)  reason = "AI 服务限流，请稍后再试";
-            else if (code >= 500)  reason = "AI 服务异常（" + code + "）";
-            else                   reason = "AI 接口返回错误码 " + code;
-            // —— 第一条 SSE 立刻告知降级，不再让用户空等 ——
-            sendSource(out, "local", "", reason, true);
-            sendChunk(out, "【服务降级提示】" + reason + "，已自动切换为本地模拟导诊。\n\n");
-            streamText(out, replyText);
-            saveChat(loginname, "user", lastText, deptName);
-            saveChat(loginname, "assistant", "【降级:" + code + "】" + replyText, deptName);
-            if (deptName != null) sendCard(out, buildDeptCard(deptName));
-            sendDone(out);
-        } else {
-            String line;
-            StringBuilder llmReply = new StringBuilder();
-            while ((line = br.readLine()) != null) {
-                if (line.startsWith("data: ")) {
-                    String data = line.substring(6).trim();
-                    if ("[DONE]".equals(data)) {
-                        break;
-                    }
-                    String delta = extractDelta(data);
-                    if (delta != null && !delta.isEmpty()) {
-                        if(llmReply.length() == 0) sendSource(out, "llm", MODEL, "", false);
-                        llmReply.append(delta);
-                        sendChunk(out, delta);
+boolean external=externalEnabled && "1".equals(request.getParameter("allowExternal")) && API_KEY!=null && !API_KEY.isEmpty();
+String reason="本次使用本地规则";
+if(external){
+    boolean started=false, complete=false;
+    HttpURLConnection conn=null;
+    try{
+        conn=(HttpURLConnection)new URL(API_URL).openConnection();conn.setInstanceFollowRedirects(false);
+        conn.setConnectTimeout(10000);conn.setReadTimeout(readTimeout);conn.setRequestMethod("POST");conn.setDoOutput(true);
+        conn.setRequestProperty("Authorization","Bearer "+API_KEY);conn.setRequestProperty("Content-Type","application/json; charset=UTF-8");
+        conn.setRequestProperty("Accept","text/event-stream");
+        String payload="{\"model\":"+toJson(MODEL)+",\"stream\":true,\"messages\":[{\"role\":\"system\",\"content\":"+toJson(SYSTEM_PROMPT)+"},{\"role\":\"user\",\"content\":"+toJson(lastText)+"}]}";
+        try(OutputStream os=conn.getOutputStream()){os.write(payload.getBytes("UTF-8"));}
+        if(conn.getResponseCode()==200){
+            StringBuilder answer=new StringBuilder();
+            try(BufferedReader reader=new BufferedReader(new InputStreamReader(conn.getInputStream(),"UTF-8"))){
+                String line;
+                while((line=reader.readLine())!=null){
+                    if(!line.startsWith("data:"))continue;
+                    String data=line.substring(5).trim();
+                    if("[DONE]".equals(data)){complete=true;break;}
+                    String delta=extractDelta(data);
+                    if(delta!=null && !delta.isEmpty()){
+                        if(!started)sendSource(out,"llm",MODEL,"",false);
+                        started=true;answer.append(delta);sendChunk(out,delta);
                     }
                 }
             }
-            br.close();
-            conn.disconnect();
-            if(llmReply.toString().trim().isEmpty()) throw new java.io.IOException("Empty model response");
-            saveChat(loginname, "user", lastText, deptName);
-            saveChat(loginname, "assistant", llmReply.toString(), deptName);
-            // 关键词没命中时，用模型回复里唯一提到的科室兜底，保证仍有卡片和挂号按钮
-            String cardDept = (deptName != null) ? deptName : uniqueDeptInText(llmReply.toString());
-            if (cardDept != null) sendCard(out, buildDeptCard(cardDept));
-            sendDone(out);
-        }
-    } catch (java.net.SocketTimeoutException ste) {
-            // —— 连接/读取超时：第一条 SSE 立刻告知降级原因（不再让用户盯着空屏幕） ——
-            sendSource(out, "local", "", "模型服务响应超时", true);
-            sendChunk(out, "【服务降级提示】AI 接口响应超时，已自动切换为本地模拟导诊。\n\n");
-            streamText(out, replyText);
-            saveChat(loginname, "user", lastText, deptName);
-            saveChat(loginname, "assistant", "【降级:超时】" + replyText, deptName);
-            if (deptName != null) sendCard(out, buildDeptCard(deptName));
-            sendDone(out);
-    } catch (Exception e) {
-            // —— 其它网络/解析异常：第一条 SSE 立刻告知降级原因 ——
-            String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            sendSource(out, "local", "", "模型服务暂时不可用", true);
-            sendChunk(out, "【服务降级提示】模型服务暂时不可用，已自动切换为本地模拟导诊。\n\n");
-            streamText(out, replyText);
-            saveChat(loginname, "user", lastText, deptName);
-            saveChat(loginname, "assistant", "【降级:异常】" + replyText, deptName);
-            if (deptName != null) sendCard(out, buildDeptCard(deptName));
-            sendDone(out);
-    }
+            if(started && complete && !answer.toString().trim().isEmpty()){
+                String cardDept=deptName!=null?deptName:uniqueDeptInText(answer.toString());
+                if(cardDept!=null)sendCard(out,buildDeptCard(cardDept));
+                auditTriage(loginname,"模型完成");sendDone(out);return;
+            }
+            reason="模型未返回完整回答";
+        }else reason="模型服务不可用";
+    }catch(SocketTimeoutException timeout){reason="模型服务响应超时";}
+    catch(Exception failure){reason="模型服务暂时不可用";}
+    finally{if(conn!=null)conn.disconnect();}
+    if(started){auditTriage(loginname,"模型中断");out.print("data: {\"interrupted\":true}\n\n");out.flush();return;}
 }
+sendSource(out,"local","",reason,external);streamText(out,replyText);
+if(deptName!=null)sendCard(out,buildDeptCard(deptName));
+auditTriage(loginname,external?"本地降级完成":"本地完成");sendDone(out);
 %>

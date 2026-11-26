@@ -7,13 +7,12 @@ String loginname = (String)session.getAttribute("loginname");
 String usertype  = (String)session.getAttribute("usertype");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
 
-// ===== 角色权限分层 =====
-// 病人：只能看自己的（隐私保护）
-// 医生：可查看全部用户的记录（接诊参考：病人描述过什么症状、被推荐过什么科室）
-// 管理员：可查看全部用户的记录 + 按用户/类型筛选（审计）
 boolean isAdmin = "管理员".equals(usertype) || "admin".equalsIgnoreCase(usertype);
 boolean isDoctor = "医生".equals(usertype) || "doctor".equalsIgnoreCase(usertype);
-boolean canSeeAll = isAdmin || isDoctor;
+boolean isPatient = "病人".equals(usertype) || "patient".equalsIgnoreCase(usertype);
+if(!isAdmin && !isDoctor && !isPatient){ response.sendError(403); return; }
+response.setHeader("Cache-Control","no-store");
+boolean canSeeAll = isAdmin;
 
 // ===== 筛选参数（仅医生/管理员可用） =====
 String q = request.getParameter("q");            // 按用户名筛选
@@ -31,7 +30,7 @@ if(canSeeAll){
         cnd.add("%" + q + "%");
     }
     if("chat".equals(type)){
-        where.append(" AND role IN ('user','assistant')");
+        where.append(" AND role IN ('user','assistant','导诊')");
     } else if("aihelper".equals(type)){
         where.append(" AND role IN ('病历草稿','病历质控')");
     } else if("explain".equals(type)){
@@ -41,10 +40,10 @@ if(canSeeAll){
     }
     where.insert(0," WHERE 1=1 ");
 } else {
-    where.append(" WHERE loginname=?");
+    where.append(" WHERE loginname=? AND role IN ('user','assistant','导诊')");
     cnd.add(loginname);
 }
-String sql = "SELECT loginname,role,content,dept,ctime FROM ai_chat" + where.toString()
+String sql = (isAdmin ? "SELECT loginname,role,ctime FROM ai_chat" : "SELECT loginname,role,content,dept,ctime FROM ai_chat") + where.toString()
            + " ORDER BY ctime DESC, id DESC LIMIT 200";
 ResultSet rs = a.executeQuery(sql, cnd.toArray());
 %>
@@ -53,7 +52,7 @@ ResultSet rs = a.executeQuery(sql, cnd.toArray());
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><%=canSeeAll?(isAdmin?"问诊记录审计":"问诊记录（全科可见）"):"我的问诊记录"%></title>
+<title><%=isAdmin?"AI 审计事件":"我的问诊记录"%></title>
 <style>
   body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;margin:0;padding:24px;color:#1f2023;}
   h2{font-size:18px;margin:0 0 4px;}
@@ -91,11 +90,11 @@ ResultSet rs = a.executeQuery(sql, cnd.toArray());
 </head>
 <body class="h-business">
 <a class="back" href="javascript:history.back()">← 返回</a>
-<h2><%=canSeeAll?(isAdmin?"问诊记录审计（全员）":"问诊记录（全员，接诊参考）"):"我的问诊记录"%></h2>
+<h2><%=isAdmin?"AI 审计事件":"我的问诊记录"%></h2>
 <%if(canSeeAll){%>
-<div class="sub">当前角色：<%=isAdmin?"管理员（审计视角）":"医生（接诊参考视角）"%> · 可查看全体用户的 AI 记录，含导诊对话、病历助手、病历解读、统计查询</div>
+<div class="sub">仅显示事件时间、账号与类型，不提供正文或科室。</div>
 <%}else{%>
-<div class="sub">账户：<%=loginname%> · 以下为「小医」智能导诊的问答留存（服务端存储，可追溯）</div>
+<div class="sub">账户：<%=WebUtil.htmlEscape(loginname)%> · 仅本人导诊。旧问答保留，新记录只记事件，不保存正文。</div>
 <%}%>
 
 <%if(canSeeAll){%>
@@ -123,15 +122,15 @@ while(rs!=null && rs.next()){
   String who = rs.getString("loginname");
   if(who==null) who="";
   String role=rs.getString("role");
-  String content=rs.getString("content"); if(content==null) content="";
+  String content=isAdmin ? "" : rs.getString("content"); if(content==null) content="";
   content = content.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\n","<br>");
-  String dept=rs.getString("dept");
+  String dept=isAdmin ? null : rs.getString("dept");
   String ctime=rs.getString("ctime");
 
   // 记录类型归类：user/assistant 为导诊对话，其余为 AI 任务记录
   boolean isChat = "user".equals(role) || "assistant".equals(role);
   String cls = isChat ? ("user".equals(role)?"user":"assistant") : "other";
-  String label = "user".equals(role)?(canSeeAll?who+"（患者提问）":"我")
+  String label = "user".equals(role)?(canSeeAll?who+"（提问）":"我")
               : ("assistant".equals(role)?"小医":role);
   // 类型徽标
   String tagCls = isChat?"role-chat":("统计查询".equals(role)?"role-stats":("病历解读".equals(role)?"role-explain":"role-aihelper"));
@@ -142,12 +141,13 @@ while(rs!=null && rs.next()){
       <span><%=com.hospital.WebUtil.htmlEscape(ctime)%></span>
       <span class="role-tag <%=tagCls%>"><%=isChat?"导诊对话":com.hospital.WebUtil.htmlEscape(role)%></span>
       <%if(dept!=null&&!dept.isEmpty()){%><span class="tag">推荐科室：<%=com.hospital.WebUtil.htmlEscape(dept)%></span><%}%>
-      <%if(canSeeAll && isChat && "assistant".equals(role)){%><span class="who">用户：<%=com.hospital.WebUtil.htmlEscape(who)%></span><%}%>
+      <%if(isAdmin){%><span class="who">用户：<%=com.hospital.WebUtil.htmlEscape(who)%></span><%}%>
     </div>
     <div class="content"><%=content%></div>
   </div>
 <%
 }
+if(rs!=null)rs.close();
 if(!has){
 %>
   <div class="item"><div class="content" style="color:#9aa0b0">没有符合条件的记录。</div></div>

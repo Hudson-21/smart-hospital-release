@@ -9,7 +9,8 @@ if("管理员".equals(usertype) || "admin".equalsIgnoreCase(usertype)) roleName=
 else if("医生".equals(usertype) || "doctor".equalsIgnoreCase(usertype)) roleName="医生";
 else if("病人".equals(usertype) || "patient".equalsIgnoreCase(usertype)) roleName="病人";
 // 注入到 JS 里的当前账号（本地会话历史要按账号隔离，必须先做转义防止破坏 JS）
-String jsUser = loginname.replace("\\","\\\\").replace("\"","\\\"");
+response.setHeader("Cache-Control","no-store");
+String jsUser = com.hospital.WebUtil.jsEscape(loginname);
 %>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -177,9 +178,9 @@ String jsUser = loginname.replace("\\","\\\\").replace("\"","\\\"");
     </div>
     <div class="conv-list" id="convList"></div>
     <div class="sidebar-bottom">
-      <div class="uavatar"><%=loginname!=null && loginname.length()>0 ? loginname.substring(0,1) : "我"%></div>
+      <div class="uavatar"><%=loginname!=null && loginname.length()>0 ? com.hospital.WebUtil.htmlEscape(loginname.substring(0,1)) : "我"%></div>
       <div class="uinfo">
-        <div class="uname"><%=loginname%></div>
+        <div class="uname"><%=com.hospital.WebUtil.htmlEscape(loginname)%></div>
         <div class="urole"><%=roleName%></div>
       </div>
     </div>
@@ -191,6 +192,7 @@ String jsUser = loginname.replace("\\","\\\\").replace("\"","\\\"");
       <div class="title"><span class="dot"></span>智能导诊助手 · 小医</div>
       <div class="right">
         <span class="clear-btn" onclick="window.open('history.jsp','_blank')"> 问诊记录</span>
+        <label><input type="checkbox" id="keepLocal"> 在此设备保存聊天</label>
         <span class="clear-btn" onclick="clearCurrent()">清空对话</span>
       </div>
     </header>
@@ -201,9 +203,10 @@ String jsUser = loginname.replace("\\","\\\\").replace("\"","\\\"");
 
     <div class="input-area">
       <div class="input-box">
-        <textarea aria-label="描述您的症状" id="input" rows="1" placeholder="描述症状，例如头痛、腹痛…" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();send();}" oninput="autoGrow(this)"></textarea>
+        <textarea maxlength="2000" aria-label="描述您的症状" id="input" rows="1" placeholder="描述症状，例如头痛、腹痛…" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();send();}" oninput="autoGrow(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="send()" title="发送" aria-label="发送">➤</button>
       </div>
+      <label><input id="externalOnce" type="checkbox" autocomplete="off"> 本次允许发送当前输入至模型服务。请勿填写姓名等身份信息；默认本地处理。</label>
       <div class="hint">回复来源见每条建议下方。仅供就诊参考，不替代医生诊断。紧急情况请立即就医或拨打 120。</div>
     </div>
   </main>
@@ -228,19 +231,28 @@ const CURRENT_USER = "<%=jsUser%>";
 // 会话历史必须按登录账号隔离：同一台电脑换账号登录时，
 // 绝不能把上一个账号（医生/管理员）的导诊记录展示给病人
 const STORE_KEY = "hospital_ai_conv_v2__" + CURRENT_USER;
-// 旧版本用的是全站共用的 key（hospital_ai_conv_v1），无法判断记录属于谁，
-// 存在跨角色泄露风险，这里直接清除；服务端 ai_chat 里的记录不受影响，可在「问诊记录」页查看
-try { localStorage.removeItem("hospital_ai_conv_v1"); } catch(e){}
-let agreed = (sessionStorage.getItem("xiao_yi_agreed") === "1"); // 是否已同意免责声明
+const persistToggle=document.getElementById('keepLocal');
+const consentKey=STORE_KEY+"__optin";
+try {persistToggle.checked=localStorage.getItem(consentKey)==="yes";}catch(e){}
+const disclaimerKey="xiao_yi_agreed__"+CURRENT_USER;
+let agreed=sessionStorage.getItem(disclaimerKey)==="1";
 let conversations = loadConv();
 let currentId = (conversations[0] && conversations[0].id) || null;
 let messages = [];
 let isSending = false;
 
 function loadConv(){
+  if(!persistToggle.checked)return [];
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e){ return []; }
 }
-function saveConv(){ localStorage.setItem(STORE_KEY, JSON.stringify(conversations)); }
+function saveConv(){ if(persistToggle.checked){try{localStorage.setItem(STORE_KEY, JSON.stringify(conversations));}catch(e){}} }
+persistToggle.onchange=function(){
+  if(persistToggle.checked){
+    const older=loadConv();const ids=new Set(conversations.map(c=>c.id));
+    if(Array.isArray(older)) conversations=conversations.concat(older.filter(c=>!ids.has(c.id)));
+    localStorage.setItem(consentKey,"yes");saveConv();renderSidebar();
+  }else{localStorage.removeItem(consentKey);localStorage.removeItem(STORE_KEY);}
+};
 
 function renderSidebar(){
   const list = document.getElementById("convList");
@@ -259,6 +271,7 @@ function renderSidebar(){
 }
 
 function selectConv(id){
+  if(isSending)return;
   currentId = id;
   const conv = conversations.find(c => c.id === id);
   messages = conv ? (conv.messages || []) : [];
@@ -267,6 +280,7 @@ function selectConv(id){
 }
 
 function newChat(){
+  if(isSending)return;
   currentId = "c" + Date.now();
   messages = [];
   conversations.unshift({ id: currentId, title:"新对话", messages:[] });
@@ -277,6 +291,7 @@ function newChat(){
 }
 
 function deleteConv(id){
+  if(isSending)return;
   conversations = conversations.filter(c => c.id !== id);
   if(currentId === id){
     if(conversations.length > 0){ currentId = conversations[0].id; messages = conversations[0].messages || []; }
@@ -288,6 +303,7 @@ function deleteConv(id){
 }
 
 function clearCurrent(){
+  if(isSending)return;
   if(!currentId) return;
   const conv = conversations.find(c => c.id === currentId);
   if(conv) conv.messages = [];
@@ -407,7 +423,7 @@ function quick(t){
   send();
 }
 
-function send(presetText, extra){
+function send(presetText, extra, retry){
   if(isSending) return;
   if(!agreed){ showDisclaimer(); return; }
   const input = document.getElementById("input");
@@ -423,7 +439,7 @@ function send(presetText, extra){
   const conv = conversations.find(c => c.id === currentId);
   if(messages.length === 0 && conv) conv.title = text.slice(0, 18);
 
-  messages.push({ role:"user", content:text });
+  if(!retry) messages.push({ role:"user", content:text });
   conv.messages = messages;
   saveConv();
   renderSidebar();
@@ -431,7 +447,7 @@ function send(presetText, extra){
   // 渲染：先清欢迎页，再加入用户消息 + 机器人占位
   const inner = document.getElementById("msgsInner");
   if(inner.querySelector(".welcome")) inner.innerHTML = "";
-  inner.appendChild(buildRow("user", text));
+  if(!retry) inner.appendChild(buildRow("user", text));
   const botRow = buildRow("assistant", "", true);
   inner.appendChild(botRow);
   const botBub = botRow.querySelector(".bubble");
@@ -467,7 +483,9 @@ function send(presetText, extra){
     isSending = false;
   }
   // 组装请求体（支持结构化问诊参数）
-  let body = "messages=" + encodeURIComponent(JSON.stringify(messages));
+  const permit=document.getElementById("externalOnce");
+  let body="_csrf=<%=com.hospital.Csrf.token(session)%>&msg="+encodeURIComponent(text)+"&allowExternal="+(permit.checked?"1":"0");
+  permit.checked=false;
   if(extra){
     body += "&part=" + encodeURIComponent(extra.part||"") + "&syms=" + encodeURIComponent(extra.syms||"")
           + "&dur=" + encodeURIComponent(extra.dur||"") + "&acc=" + encodeURIComponent(extra.acc||"");
@@ -484,7 +502,7 @@ function send(presetText, extra){
     let buffer = "";
     function read(){
       return reader.read().then(({done, value}) => {
-        if(done){ finishReply(); return; }
+        if(done){ throw new Error("incomplete"); }
         buffer += decoder.decode(value, {stream:true});
         const parts = buffer.split("\n\n");
         buffer = parts.pop();
@@ -492,8 +510,9 @@ function send(presetText, extra){
           const ev = parts[i].trim();
           if(!ev.startsWith("data:")) continue;
           const json = ev.substring(5).trim();
-          try{
+          {
             const data = JSON.parse(json);
+            if(data.interrupted)throw new Error("incomplete");
             if(data.done){ finishReply(); return; }
             else if(data.meta){
               replySource = data.meta;
@@ -502,7 +521,7 @@ function send(presetText, extra){
             }
             else if(data.card){ currentCard = data.card; }
             else if(data.chunk){ fullReply += data.chunk; setBubbleText(botBub, fullReply, "assistant"); scrollBottom(); }
-          } catch(e){}
+          }
         }
         return read();
       });
@@ -511,11 +530,13 @@ function send(presetText, extra){
   })
   .catch(err => {
     botBub.classList.remove("typing");
-    setBubbleText(botBub, "网络异常，请稍后重试。", "assistant");
+    setBubbleText(botBub, "回复中断，未保存为完整回答。", "assistant");
+    if(!input.value)input.value=text;
+    const again=document.createElement("button");again.type="button";again.textContent="重试";
+    again.onclick=()=>{if(isSending || currentId!==conv.id || messages[messages.length-1]?.content!==text)return;again.disabled=true;send(text,extra,true);};botRow.appendChild(again);
     setReplySource(botBub, {source:"error"});
     btn.disabled = false;
     isSending = false;
-    console.error(err);
   });
 }
 
@@ -524,7 +545,7 @@ function showDisclaimer(){ const m=document.getElementById("disclaimerMask"); if
 function hideDisclaimer(){ const m=document.getElementById("disclaimerMask"); if(m) m.style.display="none"; }
 function agreeDisclaimer(){
   agreed = true;
-  sessionStorage.setItem("xiao_yi_agreed","1");
+  sessionStorage.setItem(disclaimerKey,"1");
   hideDisclaimer();
   document.getElementById("input").disabled = false;
   document.getElementById("sendBtn").disabled = false;

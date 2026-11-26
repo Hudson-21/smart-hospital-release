@@ -6,10 +6,16 @@ String loginname = (String)session.getAttribute("loginname");
 String usertype  = (String)session.getAttribute("usertype");
 if(loginname==null||"".equals(loginname)){response.sendRedirect(request.getContextPath()+"/login.jsp");return;}
 
-String cf = request.getParameter("cf");
-if(cf==null || "".equals(cf.trim())){ out.print("参数缺失"); return; }
+PrescriptionAccess access = PrescriptionAccess.forUser(loginname, usertype);
+if(!access.isAllowed()){response.sendError(403);return;}
 
-ResultSet rsH = a.executeQuery("SELECT cf_number,patient_name,doctor,kebie,zongjia,state,ctime,beizhu FROM chufang WHERE cf_number=?", cf.trim());
+String cf = request.getParameter("cf");
+if(cf==null || "".equals(cf.trim())){response.sendError(400);return;}
+cf = cf.trim();
+
+ResultSet rsH = a.executeQuery("SELECT cf_number,patient_name,doctor,kebie,zongjia,state,ctime,beizhu FROM chufang WHERE cf_number=?"
+    + access.sqlFilter(), access.parameters(cf));
+if(rsH==null){response.sendError(500);return;}
 String patient="", doctor="", kb="", state="", ctime="", beizhu="";
 double zongjia=0;
 if(rsH.next()){
@@ -20,8 +26,17 @@ if(rsH.next()){
     ctime  =rsH.getString("ctime")==null?"":rsH.getString("ctime");
     beizhu =rsH.getString("beizhu")==null?"":rsH.getString("beizhu");
     zongjia=rsH.getDouble("zongjia");
+} else {
+    rsH.close();
+    response.sendError(404);
+    return;
 }
-ResultSet rsD = a.executeQuery("SELECT yao_code,yao_name,price,shuliang,jine,usage_note FROM cf_item WHERE cf_number=? ORDER BY id", cf.trim());
+rsH.close();
+// 明细查询同样限定主处方的访问范围。
+ResultSet rsD = a.executeQuery("SELECT yao_code,yao_name,price,shuliang,jine,usage_note FROM cf_item WHERE cf_number=?"
+    + " AND EXISTS (SELECT 1 FROM chufang WHERE chufang.cf_number=cf_item.cf_number" + access.sqlFilter() + ") ORDER BY id",
+    access.parameters(cf));
+if(rsD==null){response.sendError(500);return;}
 %>
 <html>
 <head><link rel="stylesheet" type="text/css" media="all" href="<%=request.getContextPath()%>/images/css1/ioa.css" /><title>处方详情 <%=com.hospital.WebUtil.htmlEscape(cf)%></title>
@@ -70,6 +85,7 @@ while(rsD.next()){
 </tr>
 <%
 }
+rsD.close();
 a.close();
 %>
 <tr style="background:#fff8dc;font-weight:bold;">
